@@ -1,0 +1,1134 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><style>body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>VulnOps Command Center</title>
+<style>
+/* Tokens — dataviz reference palette; severity = validated single-hue red ordinal ramp */
+:root{
+  --plane:#f9f9f7; --surface:#fcfcfb; --ink:#0b0b0b; --ink2:#52514e; --muted:#898781;
+  --grid:#e1e0d9; --axis:#c3c2b7; --border:rgba(11,11,11,.10); --border-strong:rgba(11,11,11,.18);
+  --accent:#2a78d6; --accent-soft:#cde2fb; --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300;
+  --deemph:#c3c2b7;
+  --q100:#cde2fb; --q200:#9ec5f4; --q250:#86b6ef; --q300:#6da7ec; --q350:#5598e7; --q400:#3987e5; --q450:#2a78d6; --q500:#256abf; --q550:#1c5cab; --q600:#184f95; --q650:#104281; --q700:#0d366b;
+  --good:#0ca30c; --warn:#fab219; --serious:#ec835a; --crit:#d03b3b; --good-text:#006300;
+  --sev-low:#ec9895; --sev-med:#e26b68; --sev-high:#c43b3b; --sev-crit:#8a1c1c;
+  --shadow:0 6px 20px rgba(0,0,0,.14);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+    --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.18);
+    --accent:#3987e5; --accent-soft:#0c2d6b; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+    --deemph:#4a4a47; --good-text:#0ca30c;
+    --sev-low:#f4b3b0; --sev-med:#ea7f7c; --sev-high:#d64f4f; --sev-crit:#a52e2e;
+    --shadow:0 6px 20px rgba(0,0,0,.5);
+  }
+}
+:root[data-theme="dark"]{
+  --plane:#0d0d0d; --surface:#1a1a19; --ink:#ffffff; --ink2:#c3c2b7; --muted:#898781;
+  --grid:#2c2c2a; --axis:#383835; --border:rgba(255,255,255,.10); --border-strong:rgba(255,255,255,.18);
+  --accent:#3987e5; --accent-soft:#0c2d6b; --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300;
+  --deemph:#4a4a47; --good-text:#0ca30c;
+  --sev-low:#f4b3b0; --sev-med:#ea7f7c; --sev-high:#d64f4f; --sev-crit:#a52e2e;
+  --shadow:0 6px 20px rgba(0,0,0,.5);
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--plane);color:var(--ink);font:13px/1.45 system-ui,-apple-system,"Segoe UI","Noto Sans",sans-serif}
+button,input,select{font:inherit;color:inherit}
+.app{display:flex;flex-direction:column;min-height:100vh}
+/* top bar */
+.top{position:sticky;top:0;z-index:30;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 16px;height:52px}
+.brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14.5px;white-space:nowrap}
+.brand .dot{width:10px;height:10px;border-radius:3px;background:var(--accent)}
+.brand small{color:var(--muted);font-weight:400;font-size:11.5px}
+.tabs{display:flex;gap:0;margin-left:6px;overflow-x:auto;scrollbar-width:none;align-self:stretch}
+.tab{border:0;background:none;padding:0 11px;font-size:13px;color:var(--ink2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap}
+.tab:hover{color:var(--ink)}
+.tab[aria-selected="true"]{color:var(--ink);font-weight:600;border-bottom-color:var(--accent)}
+.sp{flex:1}
+.btn{border:1px solid var(--border-strong);background:var(--surface);color:var(--ink);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{background:var(--plane)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn:focus-visible,.tab:focus-visible,.icon-btn:focus-visible,.chip:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--border-strong);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:var(--surface);color:var(--ink2);padding:5px 10px;font-size:12px;cursor:pointer}
+.seg button+button{border-left:1px solid var(--border)}
+.seg button[aria-pressed="true"]{background:var(--accent-soft);color:var(--ink);font-weight:600}
+/* filters */
+.filters{display:flex;flex-wrap:wrap;gap:8px;padding:9px 16px;background:var(--surface);border-bottom:1px solid var(--border);align-items:center}
+.filters .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-right:2px}
+.ms{position:relative}
+.ms>button{border:1px solid var(--border-strong);background:var(--surface);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;display:inline-flex;gap:6px;align-items:center;max-width:220px}
+.ms>button b{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms>button .n{color:var(--muted)}
+.ms>button.on{border-color:var(--accent);background:var(--accent-soft)}
+.ms .pop{position:absolute;top:calc(100% + 4px);left:0;z-index:40;background:var(--surface);border:1px solid var(--border-strong);border-radius:8px;box-shadow:var(--shadow);min-width:230px;max-height:330px;overflow:auto;padding:6px;display:none}
+.ms .pop.open{display:block}
+.ms .pop .acts{display:flex;gap:6px;padding:2px 6px 6px;border-bottom:1px solid var(--grid);margin-bottom:4px}
+.ms .pop .acts button{border:0;background:none;color:var(--accent);cursor:pointer;font-size:12px;padding:2px 4px}
+.ms .pop label{display:flex;gap:8px;align-items:center;padding:5px 8px;border-radius:4px;cursor:pointer;font-size:12px}
+.ms .pop label:hover{background:var(--plane)}
+.ms .pop label span.c{margin-left:auto;color:var(--muted);font-variant-numeric:tabular-nums}
+.tg{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--border-strong);border-radius:6px;padding:5px 9px;font-size:12px;cursor:pointer;background:var(--surface)}
+.tg[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent)}
+.tg i{width:26px;height:14px;border-radius:7px;background:var(--axis);position:relative;display:inline-block}
+.tg i::after{content:"";position:absolute;top:2px;left:2px;width:10px;height:10px;border-radius:50%;background:var(--surface)}
+.tg[aria-pressed="true"] i{background:var(--accent)} .tg[aria-pressed="true"] i::after{left:14px}
+.search{border:1px solid var(--border-strong);background:var(--surface);border-radius:6px;padding:5px 9px;font-size:12px;min-width:180px}
+select.sel{border:1px solid var(--border-strong);background:var(--surface);border-radius:6px;padding:5px 8px;font-size:12px}
+/* chips */
+.chips{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px 16px;min-height:34px;background:var(--plane);border-bottom:1px solid var(--border);font-size:12px;color:var(--ink2)}
+.chip{background:var(--surface);border:1px solid var(--border-strong);border-radius:12px;padding:2px 9px;display:inline-flex;gap:6px;align-items:center;cursor:pointer;color:var(--ink);font-size:12px}
+.chip b{font-weight:600}.chip .x{color:var(--muted)}.chip:hover{border-color:var(--accent)}
+/* grid & cards */
+main{padding:14px 16px 48px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;align-content:start}
+.c2{grid-column:span 2}.c3{grid-column:span 3}.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c9{grid-column:span 9}.c12{grid-column:span 12}
+@media (max-width:1280px){.c2{grid-column:span 4}.c3{grid-column:span 4}.c4{grid-column:span 6}.c5{grid-column:span 6}.c7{grid-column:span 12}.c8{grid-column:span 12}.c9{grid-column:span 12}}
+@media (max-width:820px){.c2,.c3,.c4,.c5,.c6,.c7,.c8,.c9{grid-column:span 12}}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px 14px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.card .hd{display:flex;align-items:flex-start;gap:8px}
+.card h3{margin:0;font-size:13px;font-weight:600;line-height:1.3}
+.card .sub{font-size:11px;color:var(--muted);margin-top:1px}
+.card .tools{margin-left:auto;display:flex;gap:2px;flex:none}
+.icon-btn{border:0;background:none;color:var(--muted);cursor:pointer;padding:2px 5px;border-radius:4px;font-size:12px;line-height:1}
+.icon-btn:hover{background:var(--plane);color:var(--ink)}
+.icon-btn[aria-pressed="true"]{color:var(--accent)}
+.card .body{min-width:0}
+/* per-card explainer (ⓘ) */
+.info{display:none;font-size:11.5px;line-height:1.5;color:var(--ink2);background:var(--plane);border:1px solid var(--grid);border-radius:6px;padding:8px 10px}
+.info.open{display:block}
+.info b{color:var(--ink);font-weight:600}
+.info p{margin:0}.info p+p{margin-top:5px}
+.info code{font-size:11px}
+.kpi{position:relative}
+.kpi .ib{position:absolute;top:7px;right:7px}
+.kpi .info{margin-top:6px}
+.icon-btn.ib{font-size:13px;line-height:1;padding:1px 5px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:11px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px}
+.legend i.line{height:2px;width:14px;border-radius:1px}
+.hint{font-size:11px;color:var(--muted);margin-left:auto}
+/* KPI */
+.kpi{gap:4px;justify-content:center}
+.kpi .l{font-size:11.5px;color:var(--ink2)}
+.kpi .v{font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.1}
+.kpi.hero .v{font-size:46px}
+.kpi .d{font-size:11.5px;color:var(--muted);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.kpi .d .bad{color:var(--crit);font-weight:600}.kpi .d .goodt{color:var(--good-text);font-weight:600}
+.kpi .row{display:flex;align-items:flex-end;gap:10px;justify-content:space-between}
+.kpi svg{flex:none}
+.meter{height:8px;border-radius:4px;background:var(--q100);overflow:hidden;margin-top:4px}
+.meter>i{display:block;height:100%;background:var(--accent);border-radius:4px}
+/* tables */
+.scroll{overflow:auto;max-height:320px;border:1px solid var(--grid);border-radius:6px}
+table.dt{width:100%;border-collapse:collapse;font-size:12px;font-variant-numeric:tabular-nums}
+.dt th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border-strong);cursor:pointer;white-space:nowrap;position:sticky;top:0;background:var(--surface);z-index:1;user-select:none}
+.dt th.num,.dt td.num{text-align:right}
+.dt th .arr{color:var(--accent);margin-left:3px}
+.dt td{padding:5px 8px;border-bottom:1px solid var(--grid);white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.dt tr.click{cursor:pointer}.dt tr.click:hover td{background:var(--plane)}
+.dt tr.sel td{background:var(--accent-soft)}
+.sev{display:inline-flex;align-items:center;gap:5px;font-weight:600;font-size:11px}
+.sev i{width:8px;height:8px;border-radius:2px;display:inline-block;flex:none}
+.pill{display:inline-flex;align-items:center;gap:4px;border-radius:10px;padding:1px 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.pill.good{background:color-mix(in srgb,var(--good) 16%,transparent);color:var(--good-text)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 22%,transparent);color:var(--ink)}
+.pill.crit{background:color-mix(in srgb,var(--crit) 16%,transparent);color:var(--crit)}
+.pill.info{background:var(--accent-soft);color:var(--ink)}
+.pill.muted{background:var(--plane);color:var(--ink2);border:1px solid var(--grid)}
+/* action queue */
+.queue{display:flex;flex-direction:column}
+.queue .q{display:flex;gap:12px;align-items:center;padding:8px 2px;border-bottom:1px solid var(--grid)}
+.queue .q:last-child{border-bottom:0}
+.queue .n{font-size:20px;font-weight:600;min-width:56px;text-align:right;font-variant-numeric:tabular-nums}
+.queue .n.zero{color:var(--muted)}
+.queue .t{flex:1;min-width:0}.queue .t small{display:block;color:var(--muted);font-size:11px}
+/* SOP */
+.sop p{margin:0 0 8px}
+.sop table{width:100%;border-collapse:collapse;font-size:12px}
+.sop th{text-align:left;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+.sop td{padding:6px 8px;border-bottom:1px solid var(--grid);vertical-align:top}
+.sop td:first-child{font-weight:600;white-space:nowrap}
+details.rb{border:1px solid var(--border);border-radius:6px;padding:0 12px;background:var(--surface)}
+details.rb+details.rb{margin-top:6px}
+details.rb summary{cursor:pointer;padding:9px 0;font-weight:600;display:flex;gap:10px;align-items:center;list-style:none}
+details.rb summary::-webkit-details-marker{display:none}
+details.rb summary .st{width:22px;height:22px;border-radius:50%;background:var(--accent-soft);color:var(--ink);display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex:none}
+details.rb summary .own{margin-left:auto;color:var(--muted);font-weight:400;font-size:11.5px}
+details.rb .in{padding:0 0 10px 32px;color:var(--ink2)}
+details.rb ul{margin:4px 0 8px;padding-left:18px}
+details.rb li{margin:3px 0}
+code{font-family:ui-monospace,Consolas,"Cascadia Mono",monospace;font-size:11.5px;background:var(--plane);padding:1px 5px;border-radius:3px;border:1px solid var(--grid)}
+pre{background:var(--plane);border:1px solid var(--grid);padding:8px 10px;border-radius:6px;overflow:auto;font-size:11.5px;line-height:1.5;margin:6px 0}
+pre code{background:none;border:0;padding:0}
+.stages{display:flex;gap:6px;align-items:stretch;overflow-x:auto;padding-bottom:4px}
+.stage{flex:1;min-width:110px;border:1px solid var(--border);border-radius:6px;padding:8px 10px;cursor:pointer;background:var(--surface);position:relative}
+.stage:hover{border-color:var(--accent)}
+.stage.on{border-color:var(--accent);background:var(--accent-soft)}
+.stage .sn{font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.stage .sl{font-size:11px;color:var(--ink2)}
+.stage .bar{height:4px;border-radius:2px;margin-top:6px;background:var(--q100)}
+.stage .bar i{display:block;height:100%;border-radius:2px;background:var(--accent)}
+/* tooltip & toast */
+.tt{position:fixed;z-index:100;pointer-events:none;background:var(--surface);color:var(--ink);border:1px solid var(--border-strong);border-radius:6px;padding:7px 10px;font-size:12px;box-shadow:var(--shadow);max-width:300px;display:none}
+.tt .t{font-weight:600;margin-bottom:3px}
+.tt .r{display:flex;gap:14px;align-items:center;justify-content:space-between;line-height:1.6}
+.tt .r b{font-variant-numeric:tabular-nums}
+.tt .k{display:inline-block;width:12px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.tt .r span{color:var(--ink2)}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 14px;border-radius:6px;font-size:12px;z-index:200;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.show{opacity:1}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:150;display:none;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal .box{background:var(--surface);border-radius:8px;width:min(860px,100%);max-height:80vh;display:flex;flex-direction:column;gap:8px;padding:14px;border:1px solid var(--border-strong)}
+.modal textarea{flex:1;min-height:300px;font-family:ui-monospace,Consolas,monospace;font-size:11px;border:1px solid var(--border-strong);border-radius:6px;padding:8px;background:var(--plane);color:var(--ink)}
+svg text{font-family:inherit}
+svg .hit{fill:transparent;cursor:pointer}
+.empty{padding:24px;text-align:center;color:var(--muted);font-size:12px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="app">
+  <header class="top">
+    <div class="brand"><span class="dot"></span>VulnOps Command Center <small>v2.0 · synthetic demo</small></div>
+    <nav class="tabs" id="tabs" role="tablist"></nav>
+    <span class="sp"></span>
+    <div class="seg" id="viewSeg" title="Count vulnerability instances (host × CVE) or distinct CVEs">
+      <button aria-pressed="true" data-v="instance">Instances</button><button aria-pressed="false" data-v="distinct">Distinct CVEs</button>
+    </div>
+    <button class="btn" id="clearBtn" title="Clear all filters">Clear filters</button>
+    <button class="btn" id="exportBtn" title="Export the filtered open findings as CSV">Export CSV</button>
+    <button class="btn" id="themeBtn" title="Toggle light / dark">◐</button>
+  </header>
+  <div class="filters" id="filters"></div>
+  <div class="chips" id="chips"></div>
+  <main id="main"></main>
+</div>
+<div class="tt" id="tt" role="tooltip"></div>
+<div class="toast" id="toast"></div>
+<div class="modal" id="modal"><div class="box"><div style="display:flex;align-items:center;gap:8px"><b id="modalTitle">Export</b><span class="sp"></span><button class="btn" id="modalCopy">Copy</button><button class="btn" id="modalClose">Close</button></div><textarea id="modalText" readonly></textarea></div></div>
+<script>
+/* ============================================================
+   1. Synthetic data — deterministic (seeded), generated at load.
+   Every host, CVE id and ticket below is illustrative.
+   ============================================================ */
+'use strict';
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const rnd=mulberry32(20260901);
+const R=()=>rnd();
+const ri=(a,b)=>a+Math.floor(R()*(b-a+1));
+const pick=a=>a[Math.floor(R()*a.length)];
+function wpick(items,weights){let s=0;for(const w of weights)s+=w;let x=R()*s;for(let i=0;i<items.length;i++){x-=weights[i];if(x<=0)return items[i]}return items[items.length-1]}
+const DAY=86400000;
+const addDays=(d,n)=>new Date(d.getTime()+n*DAY);
+const dayDiff=(a,b)=>Math.floor((a-b)/DAY);
+const fmtDate=d=>`${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
+const fmtMon=d=>d.toLocaleString('en-US',{month:'short',year:'2-digit'});
+const LATEST=new Date(2026,8,1);
+const SNAPSHOTS=[0,7,14,21,28,35,42,49].map(n=>addDays(LATEST,-n));
+
+const BUS=['Retail Banking','Capital Markets','Wealth Management','Corporate Banking','Payments','Shared Services'];
+const ENVS=['Production','Non-Production','DR'];
+const TAGS=['US Managed','Non US Managed','Tangerine'];
+const REGIONS=[{n:'New York',cc:'US',c:'NYC'},{n:'New Jersey',cc:'US',c:'NWK'},{n:'Toronto',cc:'CA',c:'TOR'},{n:'London',cc:'UK',c:'LON'},{n:'Singapore',cc:'SG',c:'SGP'}];
+const OSES=[{n:'Windows Workstation',w:.44,p:'WKS',fam:'ws'},{n:'Windows Server',w:.22,p:'SRV',fam:'srv'},{n:'RHEL',w:.11,p:'LNX',fam:'lnx'},{n:'Ubuntu',w:.06,p:'LNX',fam:'lnx'},{n:'macOS',w:.09,p:'MAC',fam:'mac'},{n:'Network Device',w:.08,p:'NET',fam:'net'}];
+const TEAMS=['Endpoint Engineering','Server Operations','Network Engineering','DevOps Platform','Database Ops','Application Support'];
+const TIERS=['Tier 0','Tier 1','Tier 2','Tier 3'];
+const SEVS=['Critical','High','Medium','Low'];
+const SLA={Critical:7,High:30,Medium:60,Low:120};
+const STATES=['New','Triaged','Assigned','In Progress','Pending Verification','Risk Accepted','Closed'];
+const AGE_BANDS=['< 15 d','15–30 d','31–60 d','61–90 d','91+ d'];
+const PRIORITIES=['P1 · Fix now','P2 · This sprint','P3 · Scheduled','P4 · Backlog'];
+const JUSTIFICATIONS=['Business-critical application','Vendor patch not yet available','Compensating control in place','Legacy system — decommission scheduled','Network-isolated device','False positive under review'];
+const APPROVERS=['Hargreaves, Theo','Balogun, Femi','Iqbal, Zara','Sørensen, Kaja','Okafor, Dami','Lindqvist, Mira'];
+
+/* Vulnerability pool. fam = OS families it applies to. ex = public exploit, patch = vendor fix available */
+const VULNS=[
+ ['CVE-2025-29824','Windows CLFS Driver Elevation of Privilege','Windows',7.8,.71,1,1,1,['ws','srv']],
+ ['CVE-2025-21418','Windows Ancillary Function Driver EoP','Windows',7.8,.62,1,1,1,['ws','srv']],
+ ['CVE-2025-24983','Windows Win32k Kernel Subsystem EoP','Windows',7.0,.35,1,1,1,['ws']],
+ ['CVE-2025-26633','Microsoft Management Console Security Bypass','Windows',7.0,.22,1,1,1,['ws','srv']],
+ ['CVE-2025-33053','Windows WebDAV Remote Code Execution','Windows',8.8,.80,1,1,1,['ws','srv']],
+ ['CVE-2025-30397','Scripting Engine Memory Corruption','Windows',7.5,.44,1,1,1,['ws']],
+ ['CVE-2025-24054','NTLM Hash Disclosure Spoofing','Windows',6.5,.55,1,1,1,['ws','srv']],
+ ['CVE-2025-21391','Windows Storage Elevation of Privilege','Windows',7.1,.10,0,0,1,['ws','srv']],
+ ['CVE-2025-24985','Windows Fast FAT Driver RCE','Windows',7.8,.50,1,1,1,['ws']],
+ ['CVE-2025-47981','SPNEGO Extended Negotiation RCE','Windows',9.8,.60,0,0,1,['ws','srv']],
+ ['CVE-2025-29966','Remote Desktop Client RCE','Windows',8.8,.25,0,0,1,['ws']],
+ ['CVE-2025-21333','Windows Hyper-V NT Kernel EoP','Windows Server',7.8,.40,1,1,1,['srv']],
+ ['CVE-2025-53770','SharePoint Server Deserialization RCE','SharePoint',9.8,.94,1,1,1,['srv']],
+ ['CVE-2025-49704','SharePoint Server Code Injection','SharePoint',8.8,.90,1,1,1,['srv']],
+ ['CVE-2025-53786','Exchange Server Hybrid EoP','Exchange',8.0,.40,0,0,1,['srv']],
+ ['CVE-2025-47162','Microsoft Office Heap Overflow RCE','Office',8.4,.30,0,0,1,['ws','mac']],
+ ['CVE-2025-6554','Google Chrome V8 Type Confusion','Chrome',8.1,.85,1,1,1,['ws','mac']],
+ ['CVE-2025-5419','Google Chrome V8 Out-of-Bounds Read/Write','Chrome',8.8,.80,1,1,1,['ws','mac']],
+ ['CVE-2025-2783','Google Chrome Mojo Sandbox Escape','Chrome',8.3,.90,1,1,1,['ws']],
+ ['CVE-2025-30400','Microsoft Edge (Chromium) Use-After-Free','Edge',7.5,.20,0,0,1,['ws']],
+ ['CVE-2025-27363','FreeType Out-of-Bounds Write','FreeType',8.1,.45,1,1,1,['ws','lnx','mac']],
+ ['CVE-2025-1234','Adobe Acrobat Reader Use-After-Free','Acrobat',7.8,.15,0,0,1,['ws','mac']],
+ ['CVE-2025-0411','7-Zip Mark-of-the-Web Bypass','7-Zip',7.0,.60,1,1,1,['ws']],
+ ['CVE-2025-30666','Zoom Workplace Client Improper Input Validation','Zoom',6.6,.02,0,0,1,['ws','mac']],
+ ['CVE-2025-30754','Oracle Java SE JSSE Vulnerability','Java',5.3,.05,0,0,1,['ws','srv','lnx']],
+ ['CVE-2025-6965','SQLite Memory Corruption','SQLite',7.2,.10,0,0,1,['ws','srv','lnx','mac']],
+ ['CVE-2025-43200','Apple Messages Logic Issue','macOS',4.8,.30,1,1,1,['mac']],
+ ['CVE-2025-31200','Apple CoreAudio Memory Corruption','macOS',7.5,.35,1,1,1,['mac']],
+ ['CVE-2025-24085','Apple CoreMedia Use-After-Free','macOS',7.8,.40,1,1,1,['mac']],
+ ['CVE-2025-24201','Apple WebKit Out-of-Bounds Write','macOS',8.8,.50,1,1,1,['mac']],
+ ['CVE-2025-22224','VMware ESXi TOCTOU Race Condition','ESXi',9.3,.70,1,1,1,['srv']],
+ ['CVE-2025-31324','SAP NetWeaver Visual Composer Unauthenticated Upload','SAP',10.0,.95,1,1,1,['srv','lnx']],
+ ['CVE-2025-24813','Apache Tomcat Path Equivalence RCE','Tomcat',9.8,.93,1,1,1,['srv','lnx']],
+ ['CVE-2025-3248','Langflow Code Injection','Langflow',9.8,.90,1,1,1,['lnx']],
+ ['CVE-2025-32433','Erlang/OTP SSH Unauthenticated RCE','Erlang',10.0,.85,1,1,1,['lnx','net']],
+ ['CVE-2025-1974','ingress-nginx Admission Controller RCE','Kubernetes',9.8,.60,0,1,1,['lnx']],
+ ['CVE-2025-32463','sudo chroot Local Privilege Escalation','sudo',9.3,.50,0,1,1,['lnx']],
+ ['CVE-2025-30065','Apache Parquet Schema Parsing RCE','Parquet',9.8,.30,0,0,1,['lnx']],
+ ['CVE-2025-4598','systemd-coredump Information Disclosure','systemd',4.7,.05,0,0,1,['lnx']],
+ ['CVE-2025-1094','PostgreSQL psql SQL Injection','PostgreSQL',8.1,.30,1,1,1,['srv','lnx']],
+ ['CVE-2024-12797','OpenSSL RPK Authentication Bypass','OpenSSL',6.3,.05,0,0,1,['lnx','srv']],
+ ['CVE-2025-22457','Ivanti Connect Secure Stack Overflow','Ivanti',9.0,.90,1,1,1,['net']],
+ ['CVE-2025-0282','Ivanti Connect Secure Unauthenticated RCE','Ivanti',9.0,.92,1,1,1,['net']],
+ ['CVE-2025-4427','Ivanti EPMM Authentication Bypass','Ivanti',5.3,.70,1,1,1,['srv']],
+ ['CVE-2025-20281','Cisco ISE Unauthenticated RCE','Cisco',9.8,.60,0,1,1,['net']],
+ ['CVE-2025-20309','Cisco Unified CM Static Root Credentials','Cisco',10.0,.50,0,1,1,['net']],
+ ['CVE-2025-32756','Fortinet FortiVoice Stack Overflow','Fortinet',9.6,.70,1,1,1,['net']],
+ ['CVE-2025-24472','Fortinet FortiOS Authentication Bypass','Fortinet',8.1,.80,1,1,1,['net']],
+ ['CVE-2025-20188','Cisco IOS XE Web UI Privilege Escalation','Cisco',10.0,.55,0,1,1,['net']],
+ ['PLUGIN-104743','TLS 1.0 / 1.1 Enabled (Deprecated Protocol)','Config',3.7,.01,0,0,0,['srv','net']],
+ ['PLUGIN-57582','SSL Self-Signed Certificate','Config',3.7,.01,0,0,0,['srv','net']],
+ ['PLUGIN-57608','SMB Signing Not Required','Config',5.3,.10,0,1,0,['ws','srv']],
+ ['PLUGIN-10114','ICMP Timestamp Request Disclosure','Config',2.1,.01,0,0,0,['srv','net','lnx']],
+ ['PLUGIN-33851','Network Daemons Not Managed by Package System','Config',3.1,.01,0,0,0,['lnx']],
+ ['PLUGIN-42873','SSL Medium Strength Cipher Suites (SWEET32)','Config',5.9,.03,0,0,0,['srv','net','lnx']],
+].map((v,i)=>({idx:i,cve:v[0],title:v[1],product:v[2],cvss:v[3],epss:v[4],kev:!!v[5],exploit:!!v[6],patch:!!v[7],fam:v[8],
+  severity:v[3]>=9?'Critical':v[3]>=7?'High':v[3]>=4?'Medium':'Low',
+  weight:v[3]<4?3.2:v[3]<7?2.2:v[3]<9?1.6:0.9}));
+
+/* Hosts */
+const HOSTS=[];
+{
+  const teamFor=os=>{
+    if(os.fam==='ws')return wpick(['Endpoint Engineering','Application Support'],[.85,.15]);
+    if(os.fam==='srv')return wpick(['Server Operations','Database Ops','Application Support'],[.55,.2,.25]);
+    if(os.fam==='lnx')return wpick(['DevOps Platform','Server Operations','Database Ops'],[.55,.3,.15]);
+    if(os.fam==='mac')return 'Endpoint Engineering';
+    return 'Network Engineering';
+  };
+  const seq={};
+  for(let i=0;i<920;i++){
+    const os=wpick(OSES,OSES.map(o=>o.w));
+    const reg=wpick(REGIONS,[.34,.26,.16,.14,.10]);
+    const key=reg.c+os.p; seq[key]=(seq[key]||0)+1;
+    const isServer=os.fam==='srv'||os.fam==='lnx';
+    const tier=isServer?wpick(TIERS,[.08,.27,.42,.23]):os.fam==='net'?wpick(TIERS,[.12,.35,.4,.13]):wpick(TIERS,[.01,.09,.5,.4]);
+    const lastScanAge=wpick([ri(0,6),ri(7,30),ri(31,120)],[.84,.09,.07]);
+    HOSTS.push({
+      id:i, host:`${reg.cc}${reg.c}${os.p}${String(seq[key]).padStart(5,'0')}`,
+      ip:`10.${ri(10,99)}.${ri(0,255)}.${ri(2,254)}`,
+      os:os.n, fam:os.fam, region:reg.n,
+      bu:wpick(BUS,[.28,.18,.12,.16,.12,.14]),
+      env:isServer||os.fam==='net'?wpick(ENVS,[.6,.3,.1]):wpick(ENVS,[.9,.09,.01]),
+      tag:wpick(TAGS,[.62,.26,.12]),
+      team:teamFor(os), tier,
+      inet:(isServer&&R()<.16)||(os.fam==='net'&&R()<.28)||R()<.015,
+      scanner:R()<.7?'Tenable':'Qualys',
+      lastScan:addDays(LATEST,-lastScanAge),
+      credentialed:os.fam==='net'?R()<.45:R()<.82,
+      agent:os.fam==='net'?false:os.fam==='lnx'?R()<.72:R()<.91,
+      eol:R()<(os.fam==='srv'?.07:os.fam==='net'?.09:.03),
+    });
+  }
+}
+
+/* Findings */
+const ALL=[];
+{
+  let fid=1;
+  const byFam={};
+  for(const v of VULNS)for(const f of v.fam)(byFam[f]=byFam[f]||[]).push(v);
+  const stateForOpen=(age,sev)=>{
+    if(age<=3)return wpick(['New','Triaged'],[.7,.3]);
+    if(age<=10)return wpick(['Triaged','Assigned','In Progress'],[.35,.4,.25]);
+    return wpick(['Assigned','In Progress','Pending Verification'],[.35,.45,.2]);
+  };
+  for(const h of HOSTS){
+    const pool=byFam[h.fam]; if(!pool)continue;
+    const n=h.fam==='ws'?ri(1,11):h.fam==='net'?ri(0,5):ri(2,14);
+    const used=new Set();
+    for(let k=0;k<n;k++){
+      const v=wpick(pool,pool.map(x=>x.weight*(h.lastScan<addDays(LATEST,-30)?.6:1)));
+      if(used.has(v.idx))continue; used.add(v.idx);
+      // steady-state program: findings arrive at a roughly even rate over the year, with a mild recency bump
+      const age=wpick([ri(0,14),ri(15,45),ri(46,120),ri(121,240),ri(241,365)],[.05,.09,.23,.31,.32]);
+      const firstSeen=addDays(LATEST,-age);
+      const sla=SLA[v.severity];
+      // closure likelihood rises with age relative to the SLA clock; a small tail stays open (the breaches the dashboard exists to surface)
+      const closeP=Math.min(.99,(1-Math.exp(-(age/sla)*2.0))*(v.patch?1:.85)+(v.severity==='Critical'?.08:v.severity==='High'?.04:0));
+      let closedDate=null,state=null,exception=null;
+      if(age>2&&R()<closeP){
+        // most closures land inside the SLA window; ~15% run late, up to ~2× the clock
+        const d=Math.max(1,Math.round(Math.min(age,sla*(R()<.85?.08+R()*.9:1+R()*1.0))));
+        closedDate=addDays(firstSeen,Math.min(d,age)); state='Closed';
+      } else {
+        if(age>45&&R()<(v.severity==='Low'?.05:v.severity==='Medium'?.03:.015)){
+          state='Risk Accepted';
+          const expiry=addDays(firstSeen,ri(60,240));
+          exception={approver:pick(APPROVERS),justification:pick(JUSTIFICATIONS),expiry,requested:addDays(firstSeen,ri(3,20))};
+        } else state=stateForOpen(age,v.severity);
+      }
+      const ticket=state==='New'?null:(state==='In Progress'&&R()<.4?`CHG${String(3000000+fid*7).slice(0,7)}`:`INC${String(4100000+fid*13).slice(0,7)}`);
+      ALL.push({id:fid++,h,cve:v.cve,title:v.title,product:v.product,severity:v.severity,cvss:v.cvss,
+        epss:Math.min(.99,Math.max(.001,v.epss*(0.75+R()*.5))),kev:v.kev,exploit:v.exploit,patch:v.patch,
+        firstSeen,closedDate,state,exception,ticket,
+        // host attributes flattened for filtering
+        host:h.host,os:h.os,bu:h.bu,env:h.env,tag:h.tag,region:h.region,team:h.team,tier:h.tier,inet:h.inet,scanner:h.scanner});
+    }
+  }
+}
+
+/* Derived, snapshot-dependent annotations */
+let SNAP=LATEST;
+function annotate(snap){
+  SNAP=snap;
+  for(const r of ALL){
+    r.asOf=r.firstSeen<=snap;
+    r.open=r.asOf&&(!r.closedDate||r.closedDate>snap);
+    r.age=r.asOf?dayDiff(snap,r.firstSeen):0;
+    r.sla=SLA[r.severity]; r.due=addDays(r.firstSeen,r.sla);
+    const remain=r.sla-r.age;
+    r.daysOver=Math.max(0,r.age-r.sla);
+    r.slaState=r.open?(remain<0?'Breached':remain<=7?'At risk':'Within SLA'):(r.closedDate&&r.closedDate<=r.due?'Closed on time':'Closed late');
+    r.ageBand=r.age<15?AGE_BANDS[0]:r.age<=30?AGE_BANDS[1]:r.age<=60?AGE_BANDS[2]:r.age<=90?AGE_BANDS[3]:AGE_BANDS[4];
+    r.overBand=!r.open?null:r.daysOver===0?'Within SLA':r.daysOver<=7?'1–7 d over':r.daysOver<=30?'8–30 d over':r.daysOver<=90?'31–90 d over':'90+ d over';
+    // priority score (documented on the SOP page)
+    let s=({Critical:50,High:35,Medium:15,Low:5})[r.severity]+r.epss*25+(r.kev?20:0)+({'Tier 0':15,'Tier 1':10,'Tier 2':5,'Tier 3':0})[r.tier]+(r.inet?10:0)+(r.exploit?5:0);
+    r.score=Math.round(s);
+    r.priority=s>=85?PRIORITIES[0]:s>=65?PRIORITIES[1]:s>=45?PRIORITIES[2]:PRIORITIES[3];
+    if(r.exception){const d=dayDiff(r.exception.expiry,snap);r.excStatus=d<0?'Expired':d<=30?'Expiring ≤30 d':'Active'}
+    // a finding closed after this snapshot was still in flight as of it
+    r.stateNow=r.open?(r.state==='Closed'?(r.age<=3?'New':r.age<=10?'Triaged':'In Progress'):r.state):'Closed';
+  }
+}
+annotate(LATEST);
+/* ============================================================
+   2. Chart kit — plain SVG, no dependencies.
+   Marks: ≤24px bars, 4px rounded data-end, 2px surface gaps,
+   2px lines, ≥8px markers, hairline solid grid, hover layer, table twin.
+   ============================================================ */
+const NS='http://www.w3.org/2000/svg';
+function S(tag,attrs){const e=document.createElementNS(NS,tag);if(attrs)for(const k in attrs)e.setAttribute(k,attrs[k]);return e}
+function T(x,y,s,attrs){const t=S('text',Object.assign({x,y},attrs||{}));t.textContent=s;return t}
+function H(tag,cls,text){const e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e}
+function css(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim()}
+function TOK(){return{surface:css('--surface'),ink:css('--ink'),ink2:css('--ink2'),muted:css('--muted'),grid:css('--grid'),axis:css('--axis'),accent:css('--accent'),deemph:css('--deemph'),
+  sev:{Critical:css('--sev-crit'),High:css('--sev-high'),Medium:css('--sev-med'),Low:css('--sev-low')},
+  s:[css('--s1'),css('--s2'),css('--s3'),css('--s4'),css('--s5'),css('--s6')],
+  q:[css('--q100'),css('--q200'),css('--q300'),css('--q400'),css('--q500'),css('--q600'),css('--q700')],
+  ord:[css('--q250'),css('--q350'),css('--q450'),css('--q550'),css('--q650')],
+  good:css('--good'),warn:css('--warn'),serious:css('--serious'),crit:css('--crit')}}
+const fmtN=n=>n>=1e6?(n/1e6).toFixed(1)+'M':n>=10000?(n/1000).toFixed(1)+'K':n.toLocaleString('en-US');
+const fmtP=n=>(Math.round(n*10)/10).toFixed(1)+'%';
+function niceTicks(max,n){if(max<=0)return[0,1];const raw=max/n;const p=Math.pow(10,Math.floor(Math.log10(raw)));const c=raw/p;const step=(c<=1?1:c<=2?2:c<=2.5?2.5:c<=5?5:10)*p;const out=[];for(let v=0;v<=max+1e-9;v+=step)out.push(Math.round(v*1e6)/1e6);if(out[out.length-1]<max)out.push(out[out.length-1]+step);return out}
+const luma=hex=>{const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(.2126*r+.7152*g+.0722*b)/255};
+const textW=(s,fs)=>s.length*fs*.56;
+
+/* tooltip */
+const tt=document.getElementById('tt');
+function showTip(e,title,rows){tt.replaceChildren();const t=H('div','t',title);tt.appendChild(t);
+  for(const r of rows||[]){const d=H('div','r');const l=H('span');if(r.k){const k=H('i','k');k.style.background=r.k;l.appendChild(k)}l.appendChild(document.createTextNode(r.label));const b=H('b',null,r.value);d.append(l,b);tt.appendChild(d)}
+  tt.style.display='block';moveTip(e)}
+function moveTip(e){const w=tt.offsetWidth,h=tt.offsetHeight;let x=e.clientX+14,y=e.clientY+14;if(x+w>innerWidth-8)x=e.clientX-w-14;if(y+h>innerHeight-8)y=e.clientY-h-14;tt.style.left=x+'px';tt.style.top=y+'px'}
+function hideTip(){tt.style.display='none'}
+function hover(node,fn){node.addEventListener('pointerenter',e=>fn(e));node.addEventListener('pointermove',moveTip);node.addEventListener('pointerleave',hideTip)}
+
+/* rounded-top rect path (rounded data-end, square baseline) */
+function topRect(x,y,w,h,r){if(h<=0)return'';r=Math.min(r,w/2,h);return`M${x},${y+h}V${y+r}a${r},${r} 0 0 1 ${r},-${r}h${w-2*r}a${r},${r} 0 0 1 ${r},${r}V${y+h}Z`}
+function rightRect(x,y,w,h,r){if(w<=0)return'';r=Math.min(r,h/2,w);return`M${x},${y}h${w-r}a${r},${r} 0 0 1 ${r},${r}v${h-2*r}a${r},${r} 0 0 1 -${r},${r}H${x}Z`}
+
+/* Column chart: {cats, series:[{name,color,values}], stacked, width, height, onClick(i), target:{value,label}, fmt, labelCaps} */
+function columnChart(o){
+  const K=TOK(),fmt=o.fmt||fmtN,W=o.width,Hh=o.height||220,m={t:20,r:12,b:36,l:44};
+  const iw=W-m.l-m.r,ih=Hh-m.t-m.b,n=o.cats.length;
+  const tot=o.cats.map((c,i)=>o.stacked?o.series.reduce((s,se)=>s+(se.values[i]||0),0):Math.max(...o.series.map(se=>se.values[i]||0)));
+  const ticks=niceTicks(Math.max(o.target?o.target.value:0,...tot,1),4),top=ticks[ticks.length-1];
+  const y=v=>m.t+ih-(v/top)*ih;
+  const svg=S('svg',{width:W,height:Hh,viewBox:`0 0 ${W} ${Hh}`,role:'img'});
+  for(const tk of ticks){svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:y(tk),y2:y(tk),stroke:tk===0?K.axis:K.grid,'stroke-width':1}));svg.appendChild(T(m.l-6,y(tk)+4,fmt(tk),{'text-anchor':'end','font-size':10.5,fill:K.muted}))}
+  const band=iw/n,gcount=o.stacked?1:o.series.length,bw=Math.min(24,(band*.72)/gcount);
+  const groupW=bw*gcount+(gcount-1)*2;
+  const showEvery=band<44?Math.ceil(44/band):1;
+  o.cats.forEach((c,i)=>{
+    const cx=m.l+band*i+band/2;
+    if(i%showEvery===0){let lab=String(c);const maxc=Math.floor((band*showEvery-6)/6);if(lab.length>maxc)lab=lab.slice(0,Math.max(3,maxc-1))+'…';svg.appendChild(T(cx,Hh-m.b+16,lab,{'text-anchor':'middle','font-size':10.5,fill:K.ink2}))}
+    const g=S('g');let cum=0;
+    o.series.forEach((se,si)=>{
+      const v=se.values[i]||0;if(v<=0)return;
+      if(o.stacked){const y1=y(cum+v),y0=y(cum);const isTop=cum+v>=tot[i]-1e-9;const hh=Math.max(0,y0-y1-(cum>0?2:0));
+        const x=cx-bw/2;const yy=y1;const d=isTop?topRect(x,yy,bw,hh,4):`M${x},${yy}h${bw}v${hh}h-${bw}Z`;
+        g.appendChild(S('path',{d,fill:se.color}));cum+=v}
+      else{const x=cx-groupW/2+si*(bw+2);g.appendChild(S('path',{d:topRect(x,y(v),bw,y(0)-y(v),4),fill:se.color}))}
+    });
+    svg.appendChild(g);
+    if(o.labelCaps!==false&&(n<=10||tot[i]===Math.max(...tot))&&tot[i]>0)svg.appendChild(T(cx,y(tot[i])-5,fmt(tot[i]),{'text-anchor':'middle','font-size':10.5,fill:K.ink2,'font-weight':600}));
+    const hit=S('rect',{x:m.l+band*i,y:m.t,width:band,height:ih,class:'hit'});
+    hover(hit,e=>{g.style.opacity=.75;showTip(e,String(c),o.series.map(se=>({k:se.color,label:se.name,value:fmt(se.values[i]||0)})).concat(o.series.length>1&&o.stacked?[{label:'Total',value:fmt(tot[i])}]:[]))});
+    hit.addEventListener('pointerleave',()=>{g.style.opacity=1});
+    if(o.onClick)hit.addEventListener('click',()=>o.onClick(i));
+    svg.appendChild(hit);
+  });
+  if(o.target){const ty=y(o.target.value);svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:ty,y2:ty,stroke:K.ink2,'stroke-width':1}));svg.appendChild(T(W-m.r,ty-4,o.target.label,{'text-anchor':'end','font-size':10,fill:K.ink2}))}
+  return{node:svg,table:{cols:['Category',...o.series.map(s=>s.name)],rows:o.cats.map((c,i)=>[c,...o.series.map(s=>s.values[i]||0)])}};
+}
+
+/* Horizontal bars: {cats, series, stacked, width, rowH, onClick(i), colors (per-cat for single series), fmt, pct (100% mode)} */
+function barChartH(o){
+  const K=TOK(),fmt=o.fmt||fmtN,n=o.cats.length,rowH=o.rowH||26,W=o.width;
+  const labW=Math.min(190,Math.max(...o.cats.map(c=>textW(String(c),11)))+10);
+  const m={t:6,r:44,b:6,l:labW},iw=W-m.l-m.r,Hh=m.t+n*rowH+m.b;
+  const tot=o.cats.map((c,i)=>o.stacked?o.series.reduce((s,se)=>s+(se.values[i]||0),0):Math.max(...o.series.map(se=>se.values[i]||0)));
+  const max=o.pct?1:Math.max(...tot,1);
+  const svg=S('svg',{width:W,height:Hh,viewBox:`0 0 ${W} ${Hh}`,role:'img'});
+  const bh=Math.min(16,rowH-8);
+  o.cats.forEach((c,i)=>{
+    const cy=m.t+rowH*i+rowH/2;
+    let lab=String(c);const maxc=Math.floor(labW/6.2);if(lab.length>maxc)lab=lab.slice(0,maxc-1)+'…';
+    svg.appendChild(T(m.l-8,cy+4,lab,{'text-anchor':'end','font-size':11,fill:K.ink2}));
+    const g=S('g');let cum=0;const denom=o.pct?Math.max(tot[i],1e-9):max;
+    o.series.forEach((se,si)=>{
+      const v=se.values[i]||0;if(v<=0)return;
+      const x0=m.l+(cum/denom)*iw,x1=m.l+((cum+v)/denom)*iw;const isEnd=o.stacked?(cum+v>=tot[i]-1e-9):true;
+      const gap=o.stacked&&cum>0?2:0;const w=Math.max(0,x1-x0-gap);
+      const color=o.colors?o.colors[i]:se.color;
+      const d=isEnd?rightRect(x0+gap,cy-bh/2,w,bh,4):`M${x0+gap},${cy-bh/2}h${w}v${bh}h-${w}Z`;
+      g.appendChild(S('path',{d,fill:color}));
+      if(o.pct&&w>34){const t=T(x0+gap+w/2,cy+3.5,Math.round(v/tot[i]*100)+'%',{'text-anchor':'middle','font-size':10,fill:luma(color)>.6?'#0b0b0b':'#fff','font-weight':600});g.appendChild(t)}
+      cum+=v;
+    });
+    svg.appendChild(g);
+    if(!o.pct&&tot[i]>0)svg.appendChild(T(m.l+(tot[i]/max)*iw+6,cy+4,fmt(tot[i]),{'font-size':10.5,fill:K.ink2,'font-weight':600}));
+    const hit=S('rect',{x:0,y:m.t+rowH*i,width:W,height:rowH,class:'hit'});
+    hover(hit,e=>{g.style.opacity=.75;showTip(e,String(c),o.series.map(se=>({k:o.colors?o.colors[i]:se.color,label:se.name,value:fmt(se.values[i]||0)+(o.pct&&tot[i]?` (${Math.round((se.values[i]||0)/tot[i]*100)}%)`:'')})).concat(o.series.length>1&&o.stacked?[{label:'Total',value:fmt(tot[i])}]:[]))});
+    hit.addEventListener('pointerleave',()=>{g.style.opacity=1});
+    if(o.onClick)hit.addEventListener('click',()=>o.onClick(i));
+    svg.appendChild(hit);
+  });
+  svg.appendChild(S('line',{x1:m.l,x2:m.l,y1:m.t,y2:Hh-m.b,stroke:K.axis}));
+  return{node:svg,table:{cols:['Category',...o.series.map(s=>s.name)],rows:o.cats.map((c,i)=>[c,...o.series.map(s=>s.values[i]||0)])}};
+}
+
+/* Line chart: {x:[labels], series:[{name,color,values}], area, width, height, fmt, onClick(i)} */
+function lineChart(o){
+  const K=TOK(),fmt=o.fmt||fmtN,W=o.width,Hh=o.height||220,m={t:16,r:52,b:30,l:44};
+  const iw=W-m.l-m.r,ih=Hh-m.t-m.b,n=o.x.length;
+  const max=Math.max(1,...o.series.flatMap(s=>s.values));const ticks=niceTicks(max,4),top=ticks[ticks.length-1];
+  const X=i=>m.l+(n>1?i/(n-1):.5)*iw,Y=v=>m.t+ih-(v/top)*ih;
+  const svg=S('svg',{width:W,height:Hh,viewBox:`0 0 ${W} ${Hh}`,role:'img'});
+  for(const tk of ticks){svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:Y(tk),y2:Y(tk),stroke:tk===0?K.axis:K.grid}));svg.appendChild(T(m.l-6,Y(tk)+4,fmt(tk),{'text-anchor':'end','font-size':10.5,fill:K.muted}))}
+  const every=Math.max(1,Math.ceil(n/Math.floor(iw/52)));
+  o.x.forEach((lab,i)=>{if(i%every===0||i===n-1)svg.appendChild(T(X(i),Hh-m.b+16,lab,{'text-anchor':'middle','font-size':10.5,fill:K.ink2}))});
+  const dots=[];
+  o.series.forEach((se,si)=>{
+    const pts=se.values.map((v,i)=>`${X(i)},${Y(v)}`);
+    if(o.area&&o.series.length===1)svg.appendChild(S('path',{d:`M${X(0)},${Y(0)}L${pts.join('L')}L${X(n-1)},${Y(0)}Z`,fill:se.color,opacity:.1}));
+    svg.appendChild(S('path',{d:'M'+pts.join('L'),fill:'none',stroke:se.color,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
+    const last=se.values[n-1];
+    svg.appendChild(S('circle',{cx:X(n-1),cy:Y(last),r:5,fill:se.color,stroke:K.surface,'stroke-width':2}));
+    svg.appendChild(T(X(n-1)+8,Y(last)+4,fmt(last),{'font-size':10.5,fill:K.ink2,'font-weight':600}));
+    dots.push(se.values.map((v,i)=>{const c=S('circle',{cx:X(i),cy:Y(v),r:4.5,fill:se.color,stroke:K.surface,'stroke-width':2,opacity:0});svg.appendChild(c);return c}));
+  });
+  const cross=S('line',{x1:0,x2:0,y1:m.t,y2:m.t+ih,stroke:K.ink2,'stroke-width':1,opacity:0});svg.appendChild(cross);
+  const hit=S('rect',{x:m.l,y:m.t,width:iw,height:ih,class:'hit'});
+  let cur=-1;
+  const setI=(i,e)=>{if(cur>=0)dots.forEach(d=>d[cur].setAttribute('opacity',0));cur=i;dots.forEach(d=>d[i].setAttribute('opacity',1));cross.setAttribute('x1',X(i));cross.setAttribute('x2',X(i));cross.setAttribute('opacity',1);
+    showTip(e,String(o.x[i]),o.series.map(se=>({k:se.color,label:se.name,value:fmt(se.values[i])})))};
+  hit.addEventListener('pointermove',e=>{const r=svg.getBoundingClientRect();const px=e.clientX-r.left;let i=Math.round((px-m.l)/(n>1?iw/(n-1):1));i=Math.max(0,Math.min(n-1,i));setI(i,e)});
+  hit.addEventListener('pointerleave',()=>{if(cur>=0)dots.forEach(d=>d[cur].setAttribute('opacity',0));cur=-1;cross.setAttribute('opacity',0);hideTip()});
+  if(o.onClick)hit.addEventListener('click',()=>{if(cur>=0)o.onClick(cur)});
+  svg.appendChild(hit);
+  return{node:svg,table:{cols:['Period',...o.series.map(s=>s.name)],rows:o.x.map((c,i)=>[c,...o.series.map(s=>s.values[i])])}};
+}
+
+/* Heatmap: {rows, cols, values[r][c], width, cellH, onClick(r,c), fmt} */
+function heatmap(o){
+  const K=TOK(),fmt=o.fmt||fmtN,W=o.width,cellH=o.cellH||30;
+  const labW=Math.min(170,Math.max(...o.rows.map(r=>textW(String(r),11)))+12);
+  const m={t:22,l:labW,r:6,b:4},nc=o.cols.length,nr=o.rows.length,cw=(W-m.l-m.r)/nc,Hh=m.t+nr*cellH+m.b;
+  const max=Math.max(1,...o.values.flat());
+  const svg=S('svg',{width:W,height:Hh,viewBox:`0 0 ${W} ${Hh}`,role:'img'});
+  o.cols.forEach((c,j)=>{let lab=String(c);const maxc=Math.floor((cw-4)/6);if(lab.length>maxc)lab=lab.slice(0,maxc-1)+'…';svg.appendChild(T(m.l+cw*j+cw/2,14,lab,{'text-anchor':'middle','font-size':10.5,fill:K.ink2}))});
+  o.rows.forEach((r,i)=>{
+    let lab=String(r);const maxc=Math.floor(labW/6.2);if(lab.length>maxc)lab=lab.slice(0,maxc-1)+'…';
+    svg.appendChild(T(m.l-8,m.t+cellH*i+cellH/2+4,lab,{'text-anchor':'end','font-size':11,fill:K.ink2}));
+    o.cols.forEach((c,j)=>{
+      const v=o.values[i][j]||0;const step=v===0?-1:Math.min(6,Math.floor((v/max)*6.999));const fill=step<0?K.grid:K.q[step];
+      const x=m.l+cw*j+1,y=m.t+cellH*i+1;
+      const rect=S('rect',{x,y,width:cw-2,height:cellH-2,rx:3,fill});svg.appendChild(rect);
+      if(cw>=34&&v>0)svg.appendChild(T(x+(cw-2)/2,y+(cellH-2)/2+4,fmt(v),{'text-anchor':'middle','font-size':10.5,fill:step>=3?'#fff':'#0b0b0b','font-weight':600}));
+      const hit=S('rect',{x,y,width:cw-2,height:cellH-2,class:'hit'});
+      hover(hit,e=>{rect.setAttribute('stroke',K.ink);rect.setAttribute('stroke-width',1.5);showTip(e,`${r} × ${c}`,[{label:'Findings',value:fmt(v)}])});
+      hit.addEventListener('pointerleave',()=>rect.removeAttribute('stroke'));
+      if(o.onClick)hit.addEventListener('click',()=>o.onClick(i,j));
+      svg.appendChild(hit);
+    });
+  });
+  return{node:svg,table:{cols:['',...o.cols],rows:o.rows.map((r,i)=>[r,...o.values[i]])}};
+}
+
+/* Scatter with emphasis: {points:[{x,y,emph,label,rows}], width, height, xLabel, yLabel, xMax, yMax, quad:{x,y}, onClick(p)} */
+function scatter(o){
+  const K=TOK(),W=o.width,Hh=o.height||260,m={t:14,r:14,b:34,l:44};
+  const iw=W-m.l-m.r,ih=Hh-m.t-m.b;
+  const X=v=>m.l+(v/o.xMax)*iw,Y=v=>m.t+ih-(v/o.yMax)*ih;
+  const svg=S('svg',{width:W,height:Hh,viewBox:`0 0 ${W} ${Hh}`,role:'img'});
+  for(let v=0;v<=o.xMax;v+=o.xMax/5){svg.appendChild(S('line',{x1:X(v),x2:X(v),y1:m.t,y2:m.t+ih,stroke:K.grid}));svg.appendChild(T(X(v),Hh-m.b+16,String(Math.round(v*10)/10),{'text-anchor':'middle','font-size':10.5,fill:K.muted}))}
+  for(let v=0;v<=o.yMax+1e-9;v+=o.yMax/4){svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:Y(v),y2:Y(v),stroke:K.grid}));svg.appendChild(T(m.l-6,Y(v)+4,String(Math.round(v*100)/100),{'text-anchor':'end','font-size':10.5,fill:K.muted}))}
+  svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:Y(0),y2:Y(0),stroke:K.axis}));svg.appendChild(S('line',{x1:m.l,x2:m.l,y1:m.t,y2:Y(0),stroke:K.axis}));
+  svg.appendChild(T(W-m.r,Hh-4,o.xLabel,{'text-anchor':'end','font-size':10.5,fill:K.ink2}));
+  svg.appendChild(T(m.l+4,m.t+10,o.yLabel,{'font-size':10.5,fill:K.ink2}));
+  if(o.quad){svg.appendChild(S('line',{x1:X(o.quad.x),x2:X(o.quad.x),y1:m.t,y2:Y(0),stroke:K.ink2,'stroke-width':1,opacity:.5}));svg.appendChild(S('line',{x1:m.l,x2:W-m.r,y1:Y(o.quad.y),y2:Y(o.quad.y),stroke:K.ink2,'stroke-width':1,opacity:.5}));
+    svg.appendChild(T(W-m.r-4,Y(o.yMax)+12,'Fix now',{'text-anchor':'end','font-size':10,fill:K.ink2,'font-weight':600}));svg.appendChild(T(m.l+6,Y(0)-6,'Backlog',{'font-size':10,fill:K.muted}))}
+  const plain=S('g'),emph=S('g');
+  o.points.forEach(p=>{const c=S('circle',{cx:X(p.x),cy:Y(p.y),r:p.emph?4.5:3.5,fill:p.emph?K.accent:K.deemph,stroke:K.surface,'stroke-width':p.emph?2:1,opacity:p.emph?1:.8});(p.emph?emph:plain).appendChild(c);p._c=c});
+  svg.appendChild(plain);svg.appendChild(emph);
+  const hit=S('rect',{x:m.l,y:m.t,width:iw,height:ih,class:'hit'});let cur=null;
+  const find=e=>{const r=svg.getBoundingClientRect();const px=e.clientX-r.left,py=e.clientY-r.top;let best=null,bd=24*24;for(const p of o.points){const dx=X(p.x)-px,dy=Y(p.y)-py,d=dx*dx+dy*dy;if(d<bd){bd=d;best=p}}return best};
+  hit.addEventListener('pointermove',e=>{const p=find(e);if(cur&&cur!==p){cur._c.setAttribute('r',cur.emph?4.5:3.5)}cur=p;if(p){p._c.setAttribute('r',7);showTip(e,p.label,p.tip)}else hideTip()});
+  hit.addEventListener('pointerleave',()=>{if(cur)cur._c.setAttribute('r',cur.emph?4.5:3.5);cur=null;hideTip()});
+  if(o.onClick)hit.addEventListener('click',()=>{if(cur)o.onClick(cur)});
+  svg.appendChild(hit);
+  return{node:svg,table:{cols:['CVE','CVSS','EPSS','KEV','Instances'],rows:o.points.map(p=>[p.label,p.x,Math.round(p.y*100)/100,p.emph?'Yes':'No',p.n])}};
+}
+
+function spark(values,color,w,h){w=w||84;h=h||26;const K=TOK();const max=Math.max(1,...values),min=0;const n=values.length;const X=i=>2+(i/(n-1))*(w-6),Y=v=>h-3-((v-min)/(max-min||1))*(h-8);
+  const svg=S('svg',{width:w,height:h,viewBox:`0 0 ${w} ${h}`});svg.appendChild(S('path',{d:'M'+values.map((v,i)=>`${X(i)},${Y(v)}`).join('L'),fill:'none',stroke:K.deemph,'stroke-width':2,'stroke-linejoin':'round','stroke-linecap':'round'}));
+  svg.appendChild(S('circle',{cx:X(n-1),cy:Y(values[n-1]),r:3.5,fill:color||K.accent,stroke:K.surface,'stroke-width':2}));return svg}
+
+/* HTML table: {cols:[{key,label,num,render}], rows, onRow(row), isSel(row), maxH, sortKey, sortDir} */
+const tableSort={};
+function dataTable(o){
+  const wrap=H('div','scroll');if(o.maxH)wrap.style.maxHeight=o.maxH+'px';
+  const st=tableSort[o.id]||(tableSort[o.id]={key:o.sortKey,dir:o.sortDir||-1});
+  const rows=o.rows.slice();if(st.key){rows.sort((a,b)=>{const va=a[st.key],vb=b[st.key];if(va==null)return 1;if(vb==null)return -1;return(va>vb?1:va<vb?-1:0)*st.dir})}
+  const tb=H('table','dt'),thead=H('thead'),tr=H('tr');
+  for(const c of o.cols){const th=H('th',c.num?'num':'',c.label);if(st.key===c.key){const a=H('span','arr',st.dir>0?'▲':'▼');th.appendChild(a)}th.addEventListener('click',()=>{if(st.key===c.key)st.dir*=-1;else{st.key=c.key;st.dir=c.num?-1:1}render()});tr.appendChild(th)}
+  thead.appendChild(tr);tb.appendChild(thead);const body=H('tbody');
+  const lim=o.limit||rows.length;
+  rows.slice(0,lim).forEach(r=>{const trr=H('tr',o.onRow?'click':'');if(o.isSel&&o.isSel(r))trr.classList.add('sel');
+    for(const c of o.cols){const td=H('td',c.num?'num':'');const v=r[c.key];if(c.render)td.appendChild(c.render(v,r));else td.textContent=v==null?'—':(typeof v==='number'?(c.fmt?c.fmt(v):fmtN(v)):String(v));if(!c.render&&typeof v==='string')td.title=v;trr.appendChild(td)}
+    if(o.onRow)trr.addEventListener('click',()=>o.onRow(r));body.appendChild(trr)});
+  if(!rows.length){const trr=H('tr');const td=H('td','empty','No rows match the current filters');td.colSpan=o.cols.length;trr.appendChild(td);body.appendChild(trr)}
+  tb.appendChild(body);wrap.appendChild(tb);
+  if(rows.length>lim){const f=H('div','sub',`Showing ${lim} of ${fmtN(rows.length)} — export for the full list`);f.style.padding='6px 8px';wrap.appendChild(f)}
+  return wrap;
+}
+function sevCell(sev){const K=TOK();const s=H('span','sev');const i=H('i');i.style.background=K.sev[sev];s.append(i,document.createTextNode(sev));return s}
+function pill(text,kind){return H('span','pill '+kind,text)}
+function slaPill(state){return pill(state,state==='Breached'||state==='Closed late'?'crit':state==='At risk'?'warn':state==='Within SLA'||state==='Closed on time'?'good':'muted')}
+function legend(items){const l=H('div','legend');for(const it of items){const s=H('span');const i=H('i',it.line?'line':'');i.style.background=it.color;s.append(i,document.createTextNode(it.name));l.appendChild(s)}return l}
+
+/* ⓘ explainer: INFO[key] = {what, how} (defined with the pages). Open state survives re-renders. */
+const infoOpen={};
+function infoPanel(key){const i=INFO[key];if(!i)return null;const d=H('div','info'+(infoOpen[key]?' open':''));const p1=H('p');p1.append(H('b',null,'What it shows · '),document.createTextNode(i.what));const p2=H('p');p2.append(H('b',null,'How it is calculated · '),document.createTextNode(i.how));d.append(p1,p2);return d}
+function infoBtn(key,panel){const b=H('button','icon-btn ib','ⓘ');b.title='What is this and how is it calculated?';b.setAttribute('aria-pressed',!!infoOpen[key]);b.setAttribute('aria-label','Explain '+key);
+  b.addEventListener('click',e=>{e.stopPropagation();infoOpen[key]=!infoOpen[key];panel.classList.toggle('open',infoOpen[key]);b.setAttribute('aria-pressed',infoOpen[key])});return b}
+
+/* Card with table-view twin. spec: {title, sub, span, legend:[], hint, render(width, mode)->{node,table}|node, kind:'kpi'|'html'} */
+const cardMode={};
+function card(spec){
+  const c=H('section','card '+(spec.span||'c6')+(spec.cls?' '+spec.cls:''));
+  const ip=infoPanel(spec.title);
+  if(spec.kind==='html'){if(spec.title){const hd=H('div','hd');const tw=H('div');tw.appendChild(H('h3',null,spec.title));if(spec.sub)tw.appendChild(H('div','sub',spec.sub));hd.appendChild(tw);if(ip){const tools=H('div','tools');tools.appendChild(infoBtn(spec.title,ip));hd.appendChild(tools)}c.appendChild(hd);if(ip)c.appendChild(ip)}
+    const body=H('div','body');body.appendChild(spec.render());c.appendChild(body);return c}
+  const hd=H('div','hd');const tw=H('div');tw.appendChild(H('h3',null,spec.title));if(spec.sub)tw.appendChild(H('div','sub',spec.sub));hd.appendChild(tw);
+  const tools=H('div','tools');if(ip)tools.appendChild(infoBtn(spec.title,ip));const tb=H('button','icon-btn','⊞');tb.title='Toggle table view';tb.setAttribute('aria-pressed',cardMode[spec.title]==='table');
+  const body=H('div','body');
+  const draw=()=>{body.replaceChildren();const w=Math.max(220,c.clientWidth-30);const out=spec.render(w);
+    if(cardMode[spec.title]==='table'&&out.table){const rows=out.table.rows.map(r=>{const o={};out.table.cols.forEach((cn,i)=>o['c'+i]=r[i]);return o});body.appendChild(dataTable({id:'tv:'+spec.title,cols:out.table.cols.map((cn,i)=>({key:'c'+i,label:cn||'',num:i>0&&typeof out.table.rows[0]?.[i]==='number'})),rows,maxH:260}))}
+    else body.appendChild(out.node||out)};
+  tb.addEventListener('click',()=>{cardMode[spec.title]=cardMode[spec.title]==='table'?'chart':'table';tb.setAttribute('aria-pressed',cardMode[spec.title]==='table');draw()});
+  tools.appendChild(tb);hd.appendChild(tools);c.appendChild(hd);
+  if(ip)c.appendChild(ip);
+  if(spec.legend||spec.hint){const row=H('div','legend');if(spec.legend)row.appendChild(legend(spec.legend));if(spec.hint)row.appendChild(H('span','hint',spec.hint));c.appendChild(row)}
+  c.appendChild(body);
+  // defer draw until attached (needs width)
+  requestAnimationFrame(draw);
+  return c;
+}
+function kpi(o){const c=H('section','card kpi '+(o.span||'c2')+(o.hero?' hero':''));c.appendChild(H('div','l',o.label));
+  const row=H('div','row');const v=H('div','v',o.value);row.appendChild(v);if(o.spark)row.appendChild(spark(o.spark,o.sparkColor));c.appendChild(row);
+  if(o.delta||o.note){const d=H('div','d');if(o.delta){const s=H('span',o.deltaKind||'',o.delta);d.appendChild(s)}if(o.note)d.appendChild(H('span',null,o.note));c.appendChild(d)}
+  if(o.meter!=null){const m=H('div','meter');const i=H('i');i.style.width=Math.max(0,Math.min(100,o.meter))+'%';if(o.meterColor)i.style.background=o.meterColor;m.appendChild(i);c.appendChild(m)}
+  const key=o.infoKey||o.label;const ip=infoPanel(key);if(ip){c.appendChild(infoBtn(key,ip));c.appendChild(ip)}
+  if(o.onClick){c.style.cursor='pointer';c.title='Click to filter';c.addEventListener('click',o.onClick)}
+  return c}
+/* ============================================================
+   3. State, filter engine, aggregation
+   ============================================================ */
+const DIMS=[
+ {key:'bu',label:'Business unit',get:r=>r.bu,values:BUS,host:1},
+ {key:'env',label:'Environment',get:r=>r.env,values:ENVS,host:1},
+ {key:'tag',label:'Asset tag',get:r=>r.tag,values:TAGS,host:1},
+ {key:'severity',label:'Severity',get:r=>r.severity,values:SEVS},
+ {key:'region',label:'Region',get:r=>r.region,values:REGIONS.map(x=>x.n),host:1},
+ {key:'os',label:'OS',get:r=>r.os,values:OSES.map(o=>o.n),host:1},
+ {key:'team',label:'Owner team',get:r=>r.team,values:TEAMS,host:1},
+ {key:'tier',label:'Asset criticality',get:r=>r.tier,values:TIERS,host:1},
+ {key:'scanner',label:'Scanner',get:r=>r.scanner,values:['Tenable','Qualys'],host:1},
+ {key:'stateNow',label:'Workflow state',get:r=>r.stateNow,values:STATES.filter(s=>s!=='Closed'),derived:1},
+ {key:'slaState',label:'SLA state',get:r=>r.slaState,hidden:1,derived:1},
+ {key:'priority',label:'Priority',get:r=>r.priority,hidden:1,derived:1},
+ {key:'ageBand',label:'Age',get:r=>r.ageBand,hidden:1,derived:1},
+ {key:'overBand',label:'SLA overrun',get:r=>r.overBand,hidden:1,derived:1},
+ {key:'cve',label:'CVE',get:r=>r.cve,hidden:1},
+ {key:'host',label:'Host',get:r=>r.host,hidden:1,host:1},
+ {key:'product',label:'Product',get:r=>r.product,hidden:1},
+ {key:'excStatus',label:'Exception',get:r=>r.excStatus,hidden:1,derived:1},
+ {key:'justification',label:'Justification',get:r=>r.exception?r.exception.justification:null,hidden:1},
+ {key:'scanAge',label:'Last scan',get:r=>scanBand(r.h),hidden:1,host:1},
+];
+const DIM=Object.fromEntries(DIMS.map(d=>[d.key,d]));
+const F={dims:{},kev:false,inet:false,exploit:false,search:'',view:'instance',page:'overview'};
+const SCAN_BANDS=['0–7 d','8–30 d','31–90 d','91+ d'];
+function scanBand(h){const a=dayDiff(SNAP,h.lastScan);return a<=7?SCAN_BANDS[0]:a<=30?SCAN_BANDS[1]:a<=90?SCAN_BANDS[2]:SCAN_BANDS[3]}
+function activeDims(){return Object.entries(F.dims).filter(([k,s])=>s&&s.size)}
+function matches(r,staticOnly){
+  for(const [k,set] of activeDims()){const d=DIM[k];if(staticOnly&&d.derived)continue;if(!set.has(d.get(r)))return false}
+  if(F.kev&&!r.kev)return false;if(F.inet&&!r.inet)return false;if(F.exploit&&!r.exploit)return false;
+  if(F.search){const q=F.search.toLowerCase();if(!(r.host.toLowerCase().includes(q)||r.cve.toLowerCase().includes(q)||r.title.toLowerCase().includes(q)))return false}
+  return true}
+function hostMatches(h){
+  for(const [k,set] of activeDims()){const d=DIM[k];if(!d.host)continue;const v=d.key==='host'?h.host:d.key==='scanAge'?scanBand(h):h[d.key];if(!set.has(v))return false}
+  if(F.inet&&!h.inet)return false;
+  if(F.search){const q=F.search.toLowerCase();if(!h.host.toLowerCase().includes(q))return false}
+  return true}
+let base=[],allF=[],openF=[],hostsF=[];
+function compute(){base=ALL.filter(r=>r.asOf);allF=base.filter(r=>matches(r));openF=allF.filter(r=>r.open);hostsF=HOSTS.filter(hostMatches)}
+const cnt=rows=>F.view==='instance'?rows.length:new Set(rows.map(r=>r.cve)).size;
+function groupBy(rows,fn){const m=new Map();for(const r of rows){const k=fn(r);if(k==null)continue;let a=m.get(k);if(!a){a=[];m.set(k,a)}a.push(r)}return m}
+function countsBy(rows,fn,keys){const m=groupBy(rows,fn);return keys.map(k=>cnt(m.get(k)||[]))}
+function sevSeries(rows,fn,cats){const K=TOK();return SEVS.map(s=>({name:s,color:K.sev[s],values:countsBy(rows.filter(r=>r.severity===s),fn,cats)}))}
+function sevLegend(){const K=TOK();return SEVS.map(s=>({name:s,color:K.sev[s]}))}
+function toggleDim(key,value){const s=F.dims[key]||(F.dims[key]=new Set());if(s.has(value))s.delete(value);else s.add(value);render()}
+function setDim(key,values){F.dims[key]=new Set(values);render()}
+function isSel(key,value){const s=F.dims[key];return !!(s&&s.has(value))}
+function clearAll(){F.dims={};F.kev=F.inet=F.exploit=false;F.search='';render()}
+function preset(fn,page){F.dims={};F.kev=F.inet=F.exploit=false;F.search='';fn();if(page)F.page=page;render()}
+function openAsOf(date){return ALL.filter(r=>r.firstSeen<=date&&(!r.closedDate||r.closedDate>date)&&matches(r,true))}
+const mean=a=>a.length?a.reduce((s,x)=>s+x,0)/a.length:0;
+const median=a=>{if(!a.length)return 0;const b=a.slice().sort((x,y)=>x-y);return b[Math.floor(b.length/2)]};
+/* last n complete calendar months on or before the snapshot (a partial month would read as a collapse) */
+function months(n){const out=[];const lastFull=new Date(SNAP.getFullYear(),SNAP.getMonth(),0);for(let i=n-1;i>=0;i--){const d=new Date(lastFull.getFullYear(),lastFull.getMonth()-i,1);out.push({label:fmtMon(d),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59)})}return out}
+function slaPool(){const cut=addDays(SNAP,-90);return allF.filter(r=>r.open||(r.closedDate&&r.closedDate>cut))}
+function adherence(rows){const pool=rows.filter(r=>r.open||r.closedDate);if(!pool.length)return null;const ok=pool.filter(r=>r.slaState!=='Breached'&&r.slaState!=='Closed late').length;return ok/pool.length*100}
+function mttr(rows){const cut=addDays(SNAP,-90);const c=rows.filter(r=>r.closedDate&&r.closedDate>cut);return c.length?mean(c.map(r=>dayDiff(r.closedDate,r.firstSeen))):null}
+const dfmt=n=>n==null?'—':(Math.round(n*10)/10)+' d';
+const pfmt=n=>n==null?'—':fmtP(n);
+
+/* ============================================================
+   4. Pages
+   ============================================================ */
+const PAGES=[['overview','Executive Overview'],['prioritize','Risk Prioritization'],['remediation','Remediation & SLA'],['ownership','Ownership'],['coverage','Coverage & Exceptions'],['sop','SOP & Workflow']];
+const main=document.getElementById('main');
+
+function kpiRowCommon(){
+  const K=TOK();
+  const open=cnt(openF),prev=cnt(openAsOf(addDays(SNAP,-7)));const d=open-prev;
+  const weeks=[];for(let i=11;i>=0;i--)weeks.push(cnt(openAsOf(addDays(SNAP,-7*i))));
+  return{K,open,prev,d,weeks};
+}
+function deltaSpan(d,unit,goodWhenDown){const s=H('span',d===0?'':(d>0)===goodWhenDown?'bad':'goodt',(d>0?'▲ +':d<0?'▼ ':'')+(d===0?'no change':fmtN(Math.abs(d))+(unit||'')));return s}
+
+function pageOverview(){
+  const {K,open,d,weeks}=kpiRowCommon();
+  const crit=openF.filter(r=>r.severity==='Critical'),high=openF.filter(r=>r.severity==='High');
+  const kev=openF.filter(r=>r.kev),breached=openF.filter(r=>r.slaState==='Breached');
+  const adh=adherence(slaPool()),mt=mttr(allF);
+  const cov=hostsF.length?hostsF.filter(h=>dayDiff(SNAP,h.lastScan)<=30).length/hostsF.length*100:0;
+  const hosts=new Set(openF.map(r=>r.host)).size;
+  const nodes=[];
+  const hero=kpi({span:'c4',hero:true,label:F.view==='instance'?'Open vulnerability instances':'Open distinct CVEs',value:fmtN(open),spark:weeks,note:'vs. prior snapshot · 12-week trend',delta:null});
+  hero.querySelector('.d').prepend(deltaSpan(d,'',true));nodes.push(hero);
+  nodes.push(kpi({label:'Critical open',value:fmtN(cnt(crit)),note:`${fmtN(cnt(crit.filter(r=>r.slaState==='Breached')))} past SLA`,onClick:()=>setDim('severity',['Critical'])}));
+  nodes.push(kpi({label:'High open',value:fmtN(cnt(high)),note:`${fmtN(cnt(high.filter(r=>r.slaState==='Breached')))} past SLA`,onClick:()=>setDim('severity',['High'])}));
+  nodes.push(kpi({label:'CISA KEV exposed',value:fmtN(cnt(kev)),note:`${new Set(kev.map(r=>r.host)).size} hosts · ${new Set(kev.map(r=>r.cve)).size} CVEs`,onClick:()=>{F.kev=!F.kev;render()}}));
+  nodes.push(kpi({label:'Past SLA',value:fmtN(cnt(breached)),note:open?pfmt(cnt(breached)/open*100)+' of open':'',onClick:()=>setDim('slaState',['Breached'])}));
+  nodes.push(kpi({span:'c3',label:'SLA adherence (90 d)',value:pfmt(adh),note:'target ≥ 90%',meter:adh,meterColor:adh>=90?K.good:adh>=75?K.warn:K.crit}));
+  nodes.push(kpi({span:'c3',label:'Mean time to remediate (90 d)',value:dfmt(mt),note:`Critical ${dfmt(mttr(allF.filter(r=>r.severity==='Critical')))} · High ${dfmt(mttr(allF.filter(r=>r.severity==='High')))}`}));
+  nodes.push(kpi({span:'c3',label:'Scan coverage (30 d)',value:pfmt(cov),note:`${fmtN(hostsF.filter(h=>dayDiff(SNAP,h.lastScan)>30).length)} of ${fmtN(hostsF.length)} assets stale`,meter:cov,meterColor:cov>=95?K.good:cov>=85?K.warn:K.crit,onClick:()=>{F.page='coverage';render()}}));
+  nodes.push(kpi({span:'c3',label:'Affected assets',value:fmtN(hosts),note:`${fmtN(new Set(openF.map(r=>r.cve)).size)} distinct CVEs · ${fmtN(openF.length)} instances`}));
+
+  nodes.push(card({title:'Open by severity & SLA state',sub:'Click a row to filter by severity',span:'c4',legend:[{name:'Within SLA',color:K.good},{name:'At risk (≤7 d)',color:K.warn},{name:'Breached',color:K.crit}],
+    render:w=>barChartH({width:w,cats:SEVS,stacked:true,rowH:34,series:[['Within SLA',K.good],['At risk',K.warn],['Breached',K.crit]].map(([s,c])=>({name:s,color:c,values:countsBy(openF.filter(r=>r.slaState===s),r=>r.severity,SEVS)})),onClick:i=>toggleDim('severity',SEVS[i])})}));
+  const ms=months(12);
+  nodes.push(card({title:'Remediation trend — opened vs. fixed',sub:'Monthly, last 12 months · click a month to see what was fixed',span:'c4',legend:[{name:'Opened',color:K.s[1],line:1},{name:'Fixed',color:K.s[0],line:1}],
+    render:w=>lineChart({width:w,x:ms.map(m=>m.label),series:[{name:'Opened',color:K.s[1],values:ms.map(m=>cnt(allF.filter(r=>r.firstSeen>=m.start&&r.firstSeen<=m.end)))},{name:'Fixed',color:K.s[0],values:ms.map(m=>cnt(allF.filter(r=>r.closedDate&&r.closedDate>=m.start&&r.closedDate<=m.end)))}]})}));
+  nodes.push(card({title:'Open backlog',sub:'Open at month end, last 12 months',span:'c4',
+    render:w=>lineChart({width:w,area:true,x:ms.map(m=>m.label),series:[{name:'Open backlog',color:K.s[0],values:ms.map(m=>cnt(allF.filter(r=>r.firstSeen<=m.end&&(!r.closedDate||r.closedDate>m.end))))}]})}));
+
+  const buCats=BUS.slice().sort((a,b)=>cnt(openF.filter(r=>r.bu===b))-cnt(openF.filter(r=>r.bu===a)));
+  nodes.push(card({title:'Open by business unit',sub:'Stacked by severity · click to filter',span:'c4',legend:sevLegend(),render:w=>barChartH({width:w,cats:buCats,stacked:true,series:sevSeries(openF,r=>r.bu,buCats),onClick:i=>toggleDim('bu',buCats[i])})}));
+  nodes.push(card({title:'Age of open findings',sub:'Days since first seen · click to filter',span:'c4',render:w=>{const vals=countsBy(openF,r=>r.ageBand,AGE_BANDS);return columnChart({width:w,cats:AGE_BANDS,series:[{name:'Open',color:K.s[0],values:vals}],onClick:i=>toggleDim('ageBand',AGE_BANDS[i])})}}));
+  nodes.push(card({kind:'html',title:'Action queue',sub:'What needs attention as of this snapshot · click to jump',span:'c4',render:()=>{
+    const q=H('div','queue');
+    const items=[
+      ['KEV findings past SLA','CISA Known Exploited — remediate or file an exception today',cnt(openF.filter(r=>r.kev&&r.slaState==='Breached')),()=>preset(()=>{F.kev=true;F.dims.slaState=new Set(['Breached'])},'remediation')],
+      ['P1 · Fix now',`Score ≥ 85 — KEV/EPSS-driven Critical & High on crown jewels or internet-facing`,cnt(openF.filter(r=>r.priority===PRIORITIES[0])),()=>preset(()=>{F.dims.priority=new Set([PRIORITIES[0]])},'prioritize')],
+      ['Critical on internet-facing assets','Externally reachable — 48-hour policy clock',cnt(openF.filter(r=>r.severity==='Critical'&&r.inet)),()=>preset(()=>{F.inet=true;F.dims.severity=new Set(['Critical'])},'prioritize')],
+      ['Due within 7 days','Still inside SLA but about to breach',cnt(openF.filter(r=>r.slaState==='At risk')),()=>preset(()=>{F.dims.slaState=new Set(['At risk'])},'remediation')],
+      ['Pending verification','Reported fixed — re-scan required before closure',cnt(openF.filter(r=>r.stateNow==='Pending Verification')),()=>preset(()=>{F.dims.stateNow=new Set(['Pending Verification'])},'ownership')],
+      ['Exceptions expiring ≤ 30 days','Re-review or re-approve before they lapse',cnt(openF.filter(r=>r.excStatus==='Expiring ≤30 d')),()=>preset(()=>{F.dims.excStatus=new Set(['Expiring ≤30 d'])},'coverage')],
+      ['Assets not scanned in 30 days','Coverage gap — findings here are stale or unknown',hostsF.filter(h=>dayDiff(SNAP,h.lastScan)>30).length,()=>preset(()=>{F.dims.scanAge=new Set([SCAN_BANDS[2],SCAN_BANDS[3]])},'coverage')],
+    ];
+    for(const [t,s,n,fn] of items){const row=H('div','q');const nn=H('div','n'+(n?'':' zero'),fmtN(n));const tx=H('div','t');tx.appendChild(document.createTextNode(t));tx.appendChild(H('small',null,s));const b=H('button','btn','Open →');b.addEventListener('click',fn);row.append(nn,tx,b);q.appendChild(row)}
+    return q}}));
+
+  const byCve=[...groupBy(openF,r=>r.cve)].map(([cve,rows])=>({cve,title:rows[0].title,severity:rows[0].severity,sev:SEVS.indexOf(rows[0].severity),epss:mean(rows.map(r=>r.epss)),kev:rows[0].kev?'Yes':'No',n:rows.length,hosts:new Set(rows.map(r=>r.host)).size,oldest:Math.max(...rows.map(r=>r.age)),breached:rows.filter(r=>r.slaState==='Breached').length}));
+  nodes.push(card({title:'Top vulnerabilities',sub:'Open, ranked by instances · click a row to filter',span:'c6',render:()=>({node:dataTable({id:'topv',cols:[{key:'cve',label:'CVE / plugin'},{key:'title',label:'Vulnerability'},{key:'sev',label:'Sev',render:(v,r)=>sevCell(r.severity)},{key:'epss',label:'EPSS',num:1,fmt:v=>v.toFixed(2)},{key:'kev',label:'KEV'},{key:'n',label:'Inst.',num:1},{key:'hosts',label:'Hosts',num:1},{key:'breached',label:'Past SLA',num:1},{key:'oldest',label:'Oldest',num:1,fmt:v=>v+' d'}],rows:byCve,sortKey:'n',limit:60,maxH:340,onRow:r=>toggleDim('cve',r.cve),isSel:r=>isSel('cve',r.cve)}),table:null})}));
+  const byHost=[...groupBy(openF,r=>r.host)].map(([host,rows])=>({host,os:rows[0].os,bu:rows[0].bu,tier:rows[0].tier,team:rows[0].team,n:rows.length,crit:rows.filter(r=>r.severity==='Critical').length,kev:rows.filter(r=>r.kev).length,breached:rows.filter(r=>r.slaState==='Breached').length,score:Math.max(...rows.map(r=>r.score))}));
+  nodes.push(card({title:'Top hosts',sub:'Open findings per asset · click a row to filter',span:'c6',render:()=>({node:dataTable({id:'toph',cols:[{key:'host',label:'Host'},{key:'os',label:'OS'},{key:'bu',label:'Business unit'},{key:'tier',label:'Tier'},{key:'n',label:'Open',num:1},{key:'crit',label:'Crit',num:1},{key:'kev',label:'KEV',num:1},{key:'breached',label:'Past SLA',num:1},{key:'score',label:'Max score',num:1}],rows:byHost,sortKey:'n',limit:60,maxH:340,onRow:r=>toggleDim('host',r.host),isSel:r=>isSel('host',r.host)}),table:null})}));
+  return nodes;
+}
+
+function pagePrioritize(){
+  const K=TOK();const nodes=[];
+  const p1=openF.filter(r=>r.priority===PRIORITIES[0]);
+  nodes.push(kpi({label:'P1 · Fix now',value:fmtN(cnt(p1)),note:`${new Set(p1.map(r=>r.host)).size} hosts`,onClick:()=>setDim('priority',[PRIORITIES[0]])}));
+  nodes.push(kpi({label:'KEV open',value:fmtN(cnt(openF.filter(r=>r.kev))),note:'CISA Known Exploited',onClick:()=>{F.kev=!F.kev;render()}}));
+  nodes.push(kpi({label:'EPSS ≥ 0.70',value:fmtN(cnt(openF.filter(r=>r.epss>=.7))),note:'≥70% exploitation likelihood (30 d)'}));
+  nodes.push(kpi({label:'Tier 0 exposed',value:fmtN(cnt(openF.filter(r=>r.tier==='Tier 0'&&(r.severity==='Critical'||r.severity==='High')))),note:'Critical/High on crown jewels',onClick:()=>setDim('tier',['Tier 0'])}));
+  nodes.push(kpi({label:'Internet-facing Crit/High',value:fmtN(cnt(openF.filter(r=>r.inet&&(r.severity==='Critical'||r.severity==='High')))),note:'externally reachable',onClick:()=>{F.inet=!F.inet;render()}}));
+  nodes.push(kpi({label:'Public exploit available',value:fmtN(cnt(openF.filter(r=>r.exploit))),note:`${fmtN(cnt(openF.filter(r=>r.exploit&&!r.patch)))} with no vendor patch`,onClick:()=>{F.exploit=!F.exploit;render()}}));
+
+  nodes.push(card({title:'Priority tiers',sub:'Score = severity + EPSS + KEV + asset tier + exposure (see SOP) · click to filter',span:'c4',render:w=>barChartH({width:w,cats:PRIORITIES,rowH:34,colors:[K.ord[4],K.ord[3],K.ord[2],K.ord[1]],series:[{name:'Open',color:K.s[0],values:countsBy(openF,r=>r.priority,PRIORITIES)}],onClick:i=>toggleDim('priority',PRIORITIES[i])})}));
+  const pts=[...groupBy(openF,r=>r.cve)].map(([cve,rows])=>({x:rows[0].cvss,y:mean(rows.map(r=>r.epss)),emph:rows[0].kev,label:cve,n:rows.length,tip:[{label:'CVSS',value:String(rows[0].cvss)},{label:'EPSS',value:mean(rows.map(r=>r.epss)).toFixed(2)},{label:'KEV',value:rows[0].kev?'Listed':'No'},{label:'Instances',value:fmtN(rows.length)},{label:rows[0].title,value:''}]}));
+  nodes.push(card({title:'Exploitability vs. impact',sub:'One dot per open CVE · CVSS (x) against EPSS (y) · KEV highlighted · click to filter',span:'c8',legend:[{name:'CISA KEV',color:K.accent},{name:'Not in KEV',color:K.deemph}],render:w=>scatter({width:w,height:270,points:pts,xLabel:'CVSS base score',yLabel:'EPSS probability',xMax:10,yMax:1,quad:{x:7,y:.5},onClick:p=>toggleDim('cve',p.label)})}));
+
+  nodes.push(card({title:'Severity × asset criticality',sub:'Open findings · click a cell to filter both',span:'c4',render:w=>heatmap({width:w,rows:SEVS,cols:TIERS,values:SEVS.map(s=>TIERS.map(t=>cnt(openF.filter(r=>r.severity===s&&r.tier===t)))),onClick:(i,j)=>{F.dims.severity=new Set([SEVS[i]]);F.dims.tier=new Set([TIERS[j]]);render()}})}));
+  nodes.push(card({title:'Exploit, patch & KEV status',sub:'Share of open findings',span:'c4',legend:[{name:'Yes',color:K.accent},{name:'No',color:K.deemph}],render:w=>barChartH({width:w,pct:true,stacked:true,rowH:34,cats:['Public exploit','Vendor patch available','CISA KEV listed'],series:[{name:'Yes',color:K.accent,values:[cnt(openF.filter(r=>r.exploit)),cnt(openF.filter(r=>r.patch)),cnt(openF.filter(r=>r.kev))]},{name:'No',color:K.deemph,values:[cnt(openF.filter(r=>!r.exploit)),cnt(openF.filter(r=>!r.patch)),cnt(openF.filter(r=>!r.kev))]}]})}));
+  nodes.push(card({title:'Priority by owner team',sub:'Who holds the P1/P2 work · click to filter',span:'c4',legend:PRIORITIES.map((p,i)=>({name:p,color:[K.ord[4],K.ord[3],K.ord[2],K.ord[1]][i]})),render:w=>barChartH({width:w,stacked:true,cats:TEAMS,series:PRIORITIES.map((p,i)=>({name:p,color:[K.ord[4],K.ord[3],K.ord[2],K.ord[1]][i],values:countsBy(openF.filter(r=>r.priority===p),r=>r.team,TEAMS)})),onClick:i=>toggleDim('team',TEAMS[i])})}));
+
+  const rows=openF.slice().sort((a,b)=>b.score-a.score).slice(0,400).map(r=>({score:r.score,priority:r.priority,cve:r.cve,title:r.title,severity:r.severity,sev:SEVS.indexOf(r.severity),cvss:r.cvss,epss:r.epss,kev:r.kev?'Yes':'',host:r.host,tier:r.tier,inet:r.inet?'Yes':'',team:r.team,due:r.due,slaState:r.slaState,ticket:r.ticket}));
+  nodes.push(card({title:'Prioritized remediation queue',sub:'Top 400 open findings by priority score · click a row to filter by CVE',span:'c12',render:()=>({node:dataTable({id:'pq',cols:[{key:'score',label:'Score',num:1},{key:'priority',label:'Priority'},{key:'cve',label:'CVE'},{key:'title',label:'Vulnerability'},{key:'sev',label:'Sev',render:(v,r)=>sevCell(r.severity)},{key:'cvss',label:'CVSS',num:1,fmt:v=>v.toFixed(1)},{key:'epss',label:'EPSS',num:1,fmt:v=>v.toFixed(2)},{key:'kev',label:'KEV'},{key:'host',label:'Host'},{key:'tier',label:'Tier'},{key:'inet',label:'Internet'},{key:'team',label:'Owner'},{key:'due',label:'Due',render:v=>H('span',null,fmtDate(v))},{key:'slaState',label:'SLA',render:v=>slaPill(v)},{key:'ticket',label:'Ticket'}],rows,sortKey:'score',limit:150,maxH:420,onRow:r=>toggleDim('cve',r.cve),isSel:r=>isSel('cve',r.cve)}),table:null})}));
+  return nodes;
+}
+
+function pageRemediation(){
+  const K=TOK();const nodes=[];
+  const pool=slaPool();const adh=adherence(pool);
+  const breached=openF.filter(r=>r.slaState==='Breached'),risk=openF.filter(r=>r.slaState==='At risk');
+  const fixed30=allF.filter(r=>r.closedDate&&r.closedDate>addDays(SNAP,-30));
+  nodes.push(kpi({label:'SLA adherence (90 d)',value:pfmt(adh),note:'target ≥ 90%',meter:adh,meterColor:adh>=90?K.good:adh>=75?K.warn:K.crit}));
+  nodes.push(kpi({label:'Breached',value:fmtN(cnt(breached)),note:`${fmtN(cnt(breached.filter(r=>r.daysOver>30)))} more than 30 d over`,onClick:()=>setDim('slaState',['Breached'])}));
+  nodes.push(kpi({label:'Due within 7 days',value:fmtN(cnt(risk)),note:'at risk of breach',onClick:()=>setDim('slaState',['At risk'])}));
+  nodes.push(kpi({label:'MTTR · Critical',value:dfmt(mttr(allF.filter(r=>r.severity==='Critical'))),note:'SLA 7 d'}));
+  nodes.push(kpi({label:'MTTR · High',value:dfmt(mttr(allF.filter(r=>r.severity==='High'))),note:'SLA 30 d'}));
+  nodes.push(kpi({label:'Fixed last 30 days',value:fmtN(cnt(fixed30)),note:`${pfmt(fixed30.length?fixed30.filter(r=>r.closedDate<=r.due).length/fixed30.length*100:null)} on time`}));
+
+  nodes.push(card({title:'SLA adherence by severity',sub:'Open + closed in last 90 d · target 90%',span:'c4',render:w=>columnChart({width:w,cats:SEVS,fmt:v=>Math.round(v)+'%',target:{value:90,label:'Target 90%'},series:[{name:'Adherence',color:K.s[0],values:SEVS.map(s=>adherence(pool.filter(r=>r.severity===s))||0)}],onClick:i=>toggleDim('severity',SEVS[i])})}));
+  nodes.push(card({title:'Mean time to remediate by severity',sub:'Closed in last 90 d · days from first seen to closure',span:'c4',render:w=>columnChart({width:w,cats:SEVS,fmt:v=>Math.round(v)+' d',series:[{name:'MTTR (days)',color:K.s[0],values:SEVS.map(s=>Math.round(mttr(allF.filter(r=>r.severity===s))||0))}],onClick:i=>toggleDim('severity',SEVS[i])})}));
+  const OVER=['Within SLA','1–7 d over','8–30 d over','31–90 d over','90+ d over'];const overCol=[K.deemph,K.ord[1],K.ord[2],K.ord[3],K.ord[4]];
+  nodes.push(card({title:'SLA breach aging',sub:'Open findings by how far past due · click a row to filter',span:'c4',legend:OVER.map((o,i)=>({name:o,color:overCol[i]})),render:w=>barChartH({width:w,stacked:true,rowH:34,cats:SEVS,series:OVER.map((o,i)=>({name:o,color:overCol[i],values:countsBy(openF.filter(r=>r.overBand===o),r=>r.severity,SEVS)})),onClick:i=>toggleDim('severity',SEVS[i])})}));
+
+  const ms=months(12);
+  nodes.push(card({title:'Opened vs. fixed — monthly',sub:'Last 12 months · net = fixed − opened',span:'c6',legend:[{name:'Opened',color:K.s[1]},{name:'Fixed',color:K.s[0]}],render:w=>columnChart({width:w,cats:ms.map(m=>m.label),labelCaps:false,series:[{name:'Opened',color:K.s[1],values:ms.map(m=>cnt(allF.filter(r=>r.firstSeen>=m.start&&r.firstSeen<=m.end)))},{name:'Fixed',color:K.s[0],values:ms.map(m=>cnt(allF.filter(r=>r.closedDate&&r.closedDate>=m.start&&r.closedDate<=m.end)))}]})}));
+  nodes.push(card({title:'Backlog composition over time',sub:'Open at month end, stacked by severity',span:'c6',legend:sevLegend(),render:w=>columnChart({width:w,stacked:true,labelCaps:false,cats:ms.map(m=>m.label),series:SEVS.map(s=>({name:s,color:K.sev[s],values:ms.map(m=>cnt(allF.filter(r=>r.severity===s&&r.firstSeen<=m.end&&(!r.closedDate||r.closedDate>m.end))))}))})}));
+
+  const due=openF.filter(r=>r.slaState==='At risk').sort((a,b)=>a.due-b.due).map(r=>({due:r.due,cve:r.cve,title:r.title,severity:r.severity,sev:SEVS.indexOf(r.severity),host:r.host,team:r.team,state:r.stateNow,ticket:r.ticket,left:Math.max(0,r.sla-r.age)}));
+  nodes.push(card({title:'Due in the next 7 days',sub:'Sorted by due date · click a row to filter by host',span:'c6',render:()=>({node:dataTable({id:'due7',cols:[{key:'left',label:'Days left',num:1},{key:'due',label:'Due',render:v=>H('span',null,fmtDate(v))},{key:'cve',label:'CVE'},{key:'title',label:'Vulnerability'},{key:'sev',label:'Sev',render:(v,r)=>sevCell(r.severity)},{key:'host',label:'Host'},{key:'team',label:'Owner'},{key:'state',label:'State'},{key:'ticket',label:'Ticket'}],rows:due,sortKey:'left',sortDir:1,limit:120,maxH:340,onRow:r=>toggleDim('host',r.host),isSel:r=>isSel('host',r.host)}),table:null})}));
+  const velCats=TEAMS.slice().sort((a,b)=>cnt(fixed30.filter(r=>r.team===b))-cnt(fixed30.filter(r=>r.team===a)));
+  nodes.push(card({title:'Remediation velocity by team',sub:'Findings fixed in the last 30 days · on time vs. late',span:'c6',legend:[{name:'On time',color:K.good},{name:'Late',color:K.crit}],render:w=>barChartH({width:w,stacked:true,cats:velCats,series:[{name:'On time',color:K.good,values:countsBy(fixed30.filter(r=>r.closedDate<=r.due),r=>r.team,velCats)},{name:'Late',color:K.crit,values:countsBy(fixed30.filter(r=>r.closedDate>r.due),r=>r.team,velCats)}],onClick:i=>toggleDim('team',velCats[i])})}));
+  return nodes;
+}
+
+function stageBoard(){
+  const st=STATES.filter(s=>s!=='Closed');const counts=st.map(s=>cnt(openF.filter(r=>r.stateNow===s)));const max=Math.max(1,...counts);
+  const box=H('div','stages');
+  st.forEach((s,i)=>{const d=H('div','stage'+(isSel('stateNow',s)?' on':''));d.appendChild(H('div','sn',fmtN(counts[i])));d.appendChild(H('div','sl',s));const b=H('div','bar');const f=H('i');f.style.width=(counts[i]/max*100)+'%';b.appendChild(f);d.appendChild(b);d.addEventListener('click',()=>toggleDim('stateNow',s));d.title='Click to filter';box.appendChild(d)});
+  return box;
+}
+function pageOwnership(){
+  const K=TOK();const nodes=[];const pool=slaPool();
+  const teamCats=TEAMS.slice().sort((a,b)=>cnt(openF.filter(r=>r.team===b))-cnt(openF.filter(r=>r.team===a)));
+  nodes.push(card({title:'Open by owner team',sub:'Stacked by severity · click to filter',span:'c6',legend:sevLegend(),render:w=>barChartH({width:w,stacked:true,rowH:30,cats:teamCats,series:sevSeries(openF,r=>r.team,teamCats),onClick:i=>toggleDim('team',teamCats[i])})}));
+  nodes.push(card({title:'SLA adherence by team',sub:'Open + closed in last 90 d · target 90%',span:'c6',render:w=>columnChart({width:w,cats:teamCats,fmt:v=>Math.round(v)+'%',target:{value:90,label:'Target 90%'},series:[{name:'Adherence',color:K.s[0],values:teamCats.map(t=>adherence(pool.filter(r=>r.team===t))||0)}],onClick:i=>toggleDim('team',teamCats[i])})}));
+  nodes.push(card({title:'Team × age of open findings',sub:'Where the old work sits · click a cell to filter',span:'c6',render:w=>heatmap({width:w,rows:teamCats,cols:AGE_BANDS,values:teamCats.map(t=>AGE_BANDS.map(a=>cnt(openF.filter(r=>r.team===t&&r.ageBand===a)))),onClick:(i,j)=>{F.dims.team=new Set([teamCats[i]]);F.dims.ageBand=new Set([AGE_BANDS[j]]);render()}})}));
+  nodes.push(card({kind:'html',title:'Workflow pipeline',sub:'Open findings by ServiceNow state · click a stage to filter',span:'c6',render:()=>stageBoard()}));
+  const rows=teamCats.map(t=>{const o=openF.filter(r=>r.team===t);const br=o.filter(r=>r.slaState==='Breached');return{team:t,open:cnt(o),crit:cnt(o.filter(r=>r.severity==='Critical')),kev:cnt(o.filter(r=>r.kev)),breached:cnt(br),pct:o.length?br.length/o.length*100:0,oldest:o.length?Math.max(...o.map(r=>r.age)):0,adh:adherence(pool.filter(r=>r.team===t)),mttr:mttr(allF.filter(r=>r.team===t)),pending:cnt(o.filter(r=>r.stateNow==='Pending Verification'))}});
+  nodes.push(card({title:'Accountability leaderboard',sub:'One row per owner team · click to filter',span:'c12',render:()=>({node:dataTable({id:'lb',cols:[{key:'team',label:'Owner team'},{key:'open',label:'Open',num:1},{key:'crit',label:'Critical',num:1},{key:'kev',label:'KEV',num:1},{key:'breached',label:'Breached',num:1},{key:'pct',label:'% breached',num:1,fmt:v=>fmtP(v)},{key:'oldest',label:'Oldest (d)',num:1},{key:'adh',label:'SLA adherence',num:1,render:v=>{const s=H('span','pill '+(v>=90?'good':v>=75?'warn':'crit'),pfmt(v));return s}},{key:'mttr',label:'MTTR (d)',num:1,fmt:v=>v==null?'—':(Math.round(v*10)/10).toString()},{key:'pending',label:'Pending verify',num:1}],rows,sortKey:'breached',maxH:320,onRow:r=>toggleDim('team',r.team),isSel:r=>isSel('team',r.team)}),table:null})}));
+  return nodes;
+}
+
+function pageCoverage(){
+  const K=TOK();const nodes=[];const hs=hostsF;const n=hs.length||1;
+  const fresh=hs.filter(h=>dayDiff(SNAP,h.lastScan)<=30),stale=hs.filter(h=>dayDiff(SNAP,h.lastScan)>30);
+  const cred=hs.filter(h=>h.credentialed),agentable=hs.filter(h=>h.fam!=='net'),agent=agentable.filter(h=>h.agent);
+  const exc=openF.filter(r=>r.exception);
+  nodes.push(kpi({span:'c3',label:'Scan coverage (30 d)',value:pfmt(fresh.length/n*100),note:`${fmtN(fresh.length)} of ${fmtN(hs.length)} in-scope assets`,meter:fresh.length/n*100,meterColor:fresh.length/n>=.95?K.good:fresh.length/n>=.85?K.warn:K.crit}));
+  nodes.push(kpi({span:'c3',label:'Not scanned in 30 days',value:fmtN(stale.length),note:`${fmtN(stale.filter(h=>h.tier==='Tier 0'||h.tier==='Tier 1').length)} are Tier 0/1`,onClick:()=>setDim('scanAge',[SCAN_BANDS[2],SCAN_BANDS[3]])}));
+  nodes.push(kpi({span:'c3',label:'Credentialed scans',value:pfmt(cred.length/n*100),note:'authenticated = full patch visibility',meter:cred.length/n*100}));
+  nodes.push(kpi({span:'c3',label:'Agent coverage',value:pfmt(agentable.length?agent.length/agentable.length*100:0),note:`${fmtN(agentable.length-agent.length)} agent-eligible assets without one`,meter:agentable.length?agent.length/agentable.length*100:0}));
+  nodes.push(kpi({span:'c3',label:'End-of-life platforms',value:fmtN(hs.filter(h=>h.eol).length),note:'unsupported OS / firmware still in scope'}));
+  nodes.push(kpi({span:'c3',label:'Active exceptions (POA&M)',value:fmtN(cnt(exc.filter(r=>r.excStatus==='Active'))),note:`${fmtN(cnt(exc))} total risk acceptances`,onClick:()=>setDim('excStatus',['Active'])}));
+  nodes.push(kpi({span:'c3',label:'Expiring ≤ 30 days',value:fmtN(cnt(exc.filter(r=>r.excStatus==='Expiring ≤30 d'))),note:'need re-review or re-approval',onClick:()=>setDim('excStatus',['Expiring ≤30 d'])}));
+  nodes.push(kpi({span:'c3',label:'Expired, still open',value:fmtN(cnt(exc.filter(r=>r.excStatus==='Expired'))),note:'exception lapsed — back on the clock',onClick:()=>setDim('excStatus',['Expired'])}));
+
+  const osCats=OSES.map(o=>o.n);
+  nodes.push(card({title:'Coverage by OS',sub:'Share of assets · credentialed vs. unauthenticated vs. stale (>30 d)',span:'c6',legend:[{name:'Credentialed',color:K.good},{name:'Unauthenticated',color:K.warn},{name:'Not scanned 30 d',color:K.crit}],render:w=>barChartH({width:w,pct:true,stacked:true,rowH:30,cats:osCats,series:[{name:'Credentialed',color:K.good,values:osCats.map(o=>hs.filter(h=>h.os===o&&dayDiff(SNAP,h.lastScan)<=30&&h.credentialed).length)},{name:'Unauthenticated',color:K.warn,values:osCats.map(o=>hs.filter(h=>h.os===o&&dayDiff(SNAP,h.lastScan)<=30&&!h.credentialed).length)},{name:'Not scanned 30 d',color:K.crit,values:osCats.map(o=>hs.filter(h=>h.os===o&&dayDiff(SNAP,h.lastScan)>30).length)}],onClick:i=>toggleDim('os',osCats[i])})}));
+  nodes.push(card({title:'Last successful scan',sub:'Assets by scan age · click to filter',span:'c6',render:w=>columnChart({width:w,cats:SCAN_BANDS,series:[{name:'Assets',color:K.s[0],values:SCAN_BANDS.map(b=>hs.filter(h=>scanBand(h)===b).length)}],onClick:i=>toggleDim('scanAge',SCAN_BANDS[i])})}));
+
+  const jCats=JUSTIFICATIONS.slice().sort((a,b)=>cnt(exc.filter(r=>r.exception.justification===b))-cnt(exc.filter(r=>r.exception.justification===a)));
+  nodes.push(card({title:'Exceptions by justification',sub:'Open risk acceptances · click to filter',span:'c4',render:w=>barChartH({width:w,cats:jCats,rowH:30,series:[{name:'Exceptions',color:K.s[0],values:countsBy(exc,r=>r.exception.justification,jCats)}],onClick:i=>toggleDim('justification',jCats[i])})}));
+  const em=[];for(let i=0;i<6;i++){const d=new Date(SNAP.getFullYear(),SNAP.getMonth()+i,1);em.push({label:fmtMon(d),start:d,end:new Date(d.getFullYear(),d.getMonth()+1,0,23,59,59)})}
+  nodes.push(card({title:'Exceptions expiring — next 6 months',sub:'Plan re-reviews before the cliff',span:'c4',render:w=>columnChart({width:w,cats:em.map(m=>m.label),series:[{name:'Expiring',color:K.s[0],values:em.map(m=>cnt(exc.filter(r=>r.exception.expiry>=m.start&&r.exception.expiry<=m.end)))}]})}));
+  nodes.push(card({title:'Hygiene gaps by OS',sub:'Assets with EOL platform or missing agent',span:'c4',legend:[{name:'End-of-life',color:K.s[1]},{name:'No agent',color:K.s[0]}],render:w=>barChartH({width:w,rowH:30,cats:osCats,series:[{name:'End-of-life',color:K.s[1],values:osCats.map(o=>hs.filter(h=>h.os===o&&h.eol).length)},{name:'No agent',color:K.s[0],values:osCats.map(o=>hs.filter(h=>h.os===o&&h.fam!=='net'&&!h.agent).length)}],onClick:i=>toggleDim('os',osCats[i])})}));
+
+  const rows=exc.map(r=>({cve:r.cve,title:r.title,severity:r.severity,sev:SEVS.indexOf(r.severity),host:r.host,tier:r.tier,just:r.exception.justification,approver:r.exception.approver,requested:r.exception.requested,expiry:r.exception.expiry,status:r.excStatus,days:dayDiff(r.exception.expiry,SNAP)}));
+  nodes.push(card({title:'Risk exceptions & acceptances (POA&M)',sub:'Every open finding under an approved exception · click a row to filter by host',span:'c12',render:()=>({node:dataTable({id:'exc',cols:[{key:'status',label:'Status',render:v=>pill(v,v==='Expired'?'crit':v==='Active'?'good':'warn')},{key:'days',label:'Days to expiry',num:1},{key:'expiry',label:'Expires',render:v=>H('span',null,fmtDate(v))},{key:'cve',label:'CVE'},{key:'title',label:'Vulnerability'},{key:'sev',label:'Sev',render:(v,r)=>sevCell(r.severity)},{key:'host',label:'Host'},{key:'tier',label:'Tier'},{key:'just',label:'Justification / compensating control'},{key:'approver',label:'Approver'},{key:'requested',label:'Requested',render:v=>H('span',null,fmtDate(v))}],rows,sortKey:'days',sortDir:1,limit:200,maxH:380,onRow:r=>toggleDim('host',r.host),isSel:r=>isSel('host',r.host)}),table:null})}));
+  return nodes;
+}
+
+/* SOP page — static process content + live pipeline */
+function tbl(head,rows){const t=H('table');const th=H('thead'),tr=H('tr');head.forEach(h=>tr.appendChild(H('th',null,h)));th.appendChild(tr);t.appendChild(th);const tb=H('tbody');rows.forEach(r=>{const trr=H('tr');r.forEach(c=>{const td=H('td');if(c instanceof Node)td.appendChild(c);else td.textContent=c;trr.appendChild(td)});tb.appendChild(trr)});t.appendChild(tb);return t}
+function ul(items){const u=H('ul');items.forEach(i=>{const li=H('li');if(i instanceof Node)li.appendChild(i);else li.textContent=i;u.appendChild(li)});return u}
+function pre(s){const p=H('pre');const c=H('code',null,s);p.appendChild(c);return p}
+function frag(...parts){const f=document.createDocumentFragment();parts.forEach(p=>f.appendChild(typeof p==='string'?document.createTextNode(p):p));return f}
+function pageSop(){
+  const nodes=[];
+  nodes.push(card({kind:'html',title:'Live workflow pipeline',sub:'Open findings by ServiceNow state under the current filters · click a stage to filter every page',span:'c12',cls:'sop',render:()=>stageBoard()}));
+  nodes.push(card({kind:'html',title:'SLA policy',sub:'Remediation clocks start at first detection, not ticket creation',span:'c6',cls:'sop',render:()=>tbl(['Severity','CVSS 3.1','Production','Non-prod / DR','Override'],[
+    ['Critical','9.0 – 10.0','7 days','14 days','Internet-facing or Tier 0: 48 hours'],
+    ['High','7.0 – 8.9','30 days','45 days','KEV-listed: treated as Critical (7 d, or CISA due date if sooner)'],
+    ['Medium','4.0 – 6.9','60 days','90 days','EPSS ≥ 0.70: treated as High'],
+    ['Low','0.1 – 3.9','120 days','180 days','Config findings may close via hardening baseline'],
+  ])}));
+  nodes.push(card({kind:'html',title:'Escalation matrix',sub:'Automated from ServiceNow SLA timers — nobody has to remember to escalate',span:'c6',cls:'sop',render:()=>tbl(['Trigger','Who is notified','Action'],[
+    ['Day 0 — finding ingested','Owner team queue','Ticket auto-created, SLA due date stamped, owner from CMDB'],
+    ['50% of SLA consumed','Assignee + team lead','Reminder; assignee must set a target date or request an exception'],
+    ['100% — breach','Team lead + VM lead + team director','Daily breach digest; item added to weekly ops review'],
+    ['Breach + 14 days','CISO weekly risk review','Director presents remediation plan or files an executive risk acceptance'],
+    ['Breach + 30 days','Risk committee','Formal exception with compensating control, or decommission plan'],
+    ['KEV listed at any time','VM lead + Security Ops (paged)','Same-day triage; emergency change if internet-facing'],
+  ])}));
+  nodes.push(card({kind:'html',title:'Standard operating procedure — remediation runbook',sub:'Eight steps, each with an owner and an exit criterion. Expand a step.',span:'c8',cls:'sop',render:()=>{
+    const wrap=H('div');
+    const steps=[
+      ['Ingest & normalize','VM Engineering',['Pull Tenable and Qualys results daily at 02:00 ET via API; dedupe on host + plugin/QID + port.','Enrich with CMDB (owner, business unit, tier, environment, internet exposure), CISA KEV and EPSS feeds.','Exit: every finding has an owner and a tier, or lands in the “Unowned assets” queue.'],
+       `# nightly pull (illustrative)\n$scan = Invoke-RestMethod -Uri "$Tenable/scans/$Id/export" -Headers $H\nImport-VmFindings -Source Tenable -Path $scan | Merge-Cmdb | Enrich-Kev -Feed $KevJson`],
+      ['Triage','VM Analyst',['Validate false positives against the exception register and the last credentialed scan.','Apply severity overrides: KEV → Critical, EPSS ≥ 0.70 → at least High, internet-facing Tier 0 → 48 h clock.','Exit: state moves New → Triaged within one business day.']],
+      ['Prioritize','VM Analyst',['Score = severity (Crit 50 / High 35 / Med 15 / Low 5) + EPSS × 25 + KEV 20 + tier (T0 15 / T1 10 / T2 5) + internet-facing 10 + public exploit 5.','P1 ≥ 85 · P2 ≥ 65 · P3 ≥ 45 · P4 < 45. P1 items are reviewed in the daily stand-up.','Exit: every open finding carries a priority tier and a due date.']],
+      ['Assign','VM Analyst → Owner team',['One ServiceNow ticket per owner team + patch/KB, not per finding — hosts are attached as affected CIs.','Due date = first-seen + SLA; the ticket, not the email, is the system of record.','Exit: state Assigned; assignee acknowledged within 2 business days.']],
+      ['Remediate','Owner team',['Workstations: SCCM / Intune / PatchMyPC rings (pilot → broad → laggards). Servers: change window per environment. Network: vendor upgrade path.','P1 on internet-facing assets uses the emergency change process — no waiting for the monthly window.','Where a fix is impossible, request an exception before the SLA expires, never after.'],
+       `# ring 1 deployment check (illustrative)\nGet-CMDeploymentStatus -DeploymentId $Ring1 | Where-Object StatusType -ne Success |\n  Select-Object DeviceName, StatusDescription | Export-Csv ring1-failures.csv`],
+      ['Verify','VM Engineering',['Trigger a credentialed re-scan within 24 h of the reported fix; closure only on scanner confirmation, never on ticket notes.','Regressions (finding resurfaces) reopen the original ticket with a “Resurfaced” tag — the SLA clock does not reset.','Exit: state Pending Verification → Closed, or back to In Progress.']],
+      ['Close or accept','Owner + approver by tier',['Exceptions require: named compensating control, business justification, approver (Tier 0/1: director; Tier 2/3: team lead), expiry ≤ 180 days.','Expired exceptions return to the queue automatically with the original first-seen date.','Exit: Closed, or Risk Accepted with an expiry the dashboard tracks.']],
+      ['Report','VM Lead',['Weekly ops pack (this dashboard, Overview + Ownership) to team leads every Monday.','Monthly executive pack: SLA adherence, MTTR, KEV exposure, exception count, coverage — same definitions, no re-cutting.','Quarterly board metrics reconcile to the monthly packs.']],
+    ];
+    steps.forEach((s,i)=>{const d=H('details','rb');if(i===0)d.open=true;const sm=H('summary');sm.append(H('span','st',String(i+1)),document.createTextNode(s[0]),H('span','own',s[1]));d.appendChild(sm);const inn=H('div','in');inn.appendChild(ul(s[2]));if(s[3])inn.appendChild(pre(s[3]));d.appendChild(inn);wrap.appendChild(d)});
+    return wrap}}));
+  nodes.push(card({kind:'html',title:'Weekly cadence',sub:'The rhythm that keeps the queue moving',span:'c4',cls:'sop',render:()=>tbl(['When','What','Who'],[
+    ['Daily 09:00','P1 stand-up — every Fix-now item has a named person and a date','VM lead, owner leads'],
+    ['Monday','Ops pack sent; breach digest reviewed; exceptions expiring in 30 d re-reviewed','VM analyst'],
+    ['Tuesday','Patch Tuesday intake: new KEV/critical CVEs mapped to affected CIs within 24 h','VM engineering'],
+    ['Wednesday','Change advisory board — P1/P2 server changes approved','Change mgmt'],
+    ['Thursday','Coverage review: assets not scanned in 30 d, agent gaps, credential failures','VM engineering'],
+    ['Friday','Metrics freeze for the weekly snapshot; data quality checks (unowned assets, missing tiers)','VM lead'],
+  ])}));
+  nodes.push(card({kind:'html',title:'Metric definitions',sub:'Every number on this dashboard, defined once — so the weekly and the board pack never disagree',span:'c6',cls:'sop',render:()=>tbl(['Metric','Definition'],[
+    ['Open instance','One vulnerability on one host, first seen on or before the snapshot date and not confirmed fixed by a scan on or before it.'],
+    ['Distinct CVE','Unique CVE / plugin among open instances. The Instances ⇄ Distinct toggle applies to every count on every page.'],
+    ['SLA adherence','Findings open, or closed in the last 90 days, that are either still inside their SLA window or were closed on or before their due date, divided by all such findings.'],
+    ['MTTR','Mean days from first seen to scanner-confirmed closure, over findings closed in the last 90 days.'],
+    ['Past SLA / breached','Open and age > SLA days for its severity. “At risk” = due within 7 days.'],
+    ['KEV exposed','Open instances whose CVE is on the CISA Known Exploited Vulnerabilities catalog.'],
+    ['Scan coverage','In-scope assets with a successful scan in the last 30 days ÷ all in-scope assets. Credentialed = authenticated scan.'],
+    ['Priority score','See runbook step 3. Recomputed nightly and on every snapshot.'],
+    ['Exception status','Active = expiry > 30 days out · Expiring = within 30 days · Expired = past expiry but the finding is still open.'],
+  ])}));
+  nodes.push(card({kind:'html',title:'RACI',sub:'R = responsible · A = accountable · C = consulted · I = informed',span:'c6',cls:'sop',render:()=>tbl(['Activity','VM team','Owner team','Security Ops','Change mgmt','CISO'],[
+    ['Scanning & ingestion','R / A','I','C','—','I'],
+    ['Triage & prioritization','R / A','C','C','—','I'],
+    ['Remediation','C','R / A','I','C','I'],
+    ['Verification & closure','R / A','I','—','—','—'],
+    ['Exceptions','C','R','C','—','A'],
+    ['Reporting','R','I','I','I','A'],
+  ])}));
+  nodes.push(card({kind:'html',title:'Glossary',sub:'Terms used across the pages',span:'c12',cls:'sop',render:()=>tbl(['Term','Meaning'],[
+    ['CVSS 3.1','Common Vulnerability Scoring System base score 0–10; drives the severity band and the SLA clock.'],
+    ['EPSS','Exploit Prediction Scoring System — probability (0–1) that a CVE is exploited in the wild within 30 days. Refreshed daily.'],
+    ['CISA KEV','Known Exploited Vulnerabilities catalog — confirmed in-the-wild exploitation; policy treats every KEV as Critical.'],
+    ['Asset tier','Tier 0 = crown jewels (payment rails, core banking, identity), Tier 1 = customer-facing, Tier 2 = internal business, Tier 3 = dev/test.'],
+    ['POA&M','Plan of Action & Milestones — the exception register: what is accepted, why, by whom, and until when.'],
+    ['Resurfaced','A finding that was closed by scan and then detected again on the same host — reopened with the original SLA clock.'],
+    ['Snapshot','The weekly frozen dataset every metric is computed against. Select one in the filter bar to replay history.'],
+  ])}));
+  return nodes;
+}
+/* ============================================================
+   4b. ⓘ explainers — keyed by card title / KPI label.
+   "what" = what the reader is looking at; "how" = the exact rule.
+   ============================================================ */
+const SLA_TXT='SLA clock by severity: Critical 7 d · High 30 d · Medium 60 d · Low 120 d, counted from first detection.';
+const ADH_TXT='Pool = findings that are open, plus findings closed in the last 90 days. Adherence = (open and not past due + closed on or before their due date) ÷ pool. '+SLA_TXT;
+const OPEN_TXT='A finding counts as open when it was first seen on or before the snapshot date and has not been confirmed fixed by a scan on or before it. Every filter in the bar (and every click-filter) applies.';
+const INFO={
+  /* ---- Overview KPIs ---- */
+  'Open vulnerability instances':{what:'The headline number: how many host × CVE pairs are open right now under the current filters.',how:OPEN_TXT+' Delta = this count minus the same count as of the snapshot 7 days earlier. Sparkline = the same count at each of the last 12 weekly snapshots.'},
+  'Open distinct CVEs':{what:'The headline number in Distinct mode: how many unique CVEs / plugins have at least one open instance.',how:'Same open-finding rule as Instances, then de-duplicated on CVE id. Toggle Instances ⇄ Distinct in the top bar; it changes every count on every page.'},
+  'Critical open':{what:'Open instances rated Critical.',how:'CVSS 3.1 base score ≥ 9.0. Sub-line = the Critical instances whose age already exceeds the 7-day SLA. Click to filter the whole dashboard to Critical.'},
+  'High open':{what:'Open instances rated High.',how:'CVSS 3.1 base score 7.0 – 8.9. Sub-line = High instances older than the 30-day SLA.'},
+  'CISA KEV exposed':{what:'Open instances whose CVE is on the CISA Known Exploited Vulnerabilities catalog — confirmed exploited in the wild.',how:'Open instances where the CVE has a KEV flag. Hosts and CVEs in the sub-line are distinct counts. Policy treats every KEV as Critical.'},
+  'Past SLA':{what:'Open instances that have blown their remediation deadline.',how:'Age (days from first seen to the snapshot) is greater than the SLA days for the severity. '+SLA_TXT+' Sub-line = share of all open instances.'},
+  'SLA adherence (90 d)':{what:'How well the program is keeping its remediation promises — the single number leadership asks for.',how:ADH_TXT+' Meter turns amber below 90% and red below 75%.'},
+  'Mean time to remediate (90 d)':{what:'Average days it takes to close a finding, measured to scanner confirmation — not to “ticket closed”.',how:'Mean of (closure date − first seen) over findings closed in the 90 days before the snapshot. Sub-line repeats it for Critical and High only.'},
+  'Scan coverage (30 d)':{what:'Share of in-scope assets the scanners have actually looked at recently — findings on unscanned assets are unknown, not zero.',how:'Assets with a successful scan in the 30 days before the snapshot ÷ all in-scope assets. Only asset-level filters apply (business unit, environment, OS, team, tier, region, scanner, tag).'},
+  'Affected assets':{what:'How many hosts carry at least one open finding.',how:'Distinct host names among open instances. Sub-line: distinct CVEs and raw instance count for the same set.'},
+  /* ---- Overview cards ---- */
+  'Open by severity & SLA state':{what:'For each severity, how much of the open work is comfortably inside SLA, about to breach, or already breached.',how:'Within SLA = due date more than 7 days away. At risk = due within 7 days. Breached = past due. Segments are open instances; labels are the row total. '+SLA_TXT},
+  'Remediation trend — opened vs. fixed':{what:'Inflow vs. outflow. When Opened sits above Fixed the backlog grows.',how:'Per complete calendar month: Opened = instances first seen in that month; Fixed = instances whose scanner-confirmed closure falls in that month. The partial current month is excluded so it never reads as a collapse.'},
+  'Open backlog':{what:'The size of the open queue at the end of each of the last 12 months.',how:'For each month end: instances first seen on or before that date and not closed by it. Same rule as the headline count, replayed historically.'},
+  'Open by business unit':{what:'Which parts of the business carry the risk, and of what severity.',how:'Open instances grouped by the CMDB business unit of the host, stacked by severity, sorted by total.'},
+  'Age of open findings':{what:'How stale the queue is. A heavy 91+ bar means old debt, not new inflow.',how:'Days from first seen to the snapshot, bucketed < 15 · 15–30 · 31–60 · 61–90 · 91+.'},
+  'Action queue':{what:'The seven things a VM lead should look at today, each already filtered for you.',how:'KEV past SLA = KEV flag and breached. P1 = priority score ≥ 85. Critical on internet-facing = severity Critical and externally reachable. Due within 7 days = at-risk SLA state. Pending verification = ServiceNow state. Exceptions expiring = risk acceptances with ≤ 30 days to expiry. Not scanned = assets with no successful scan in 30 days.'},
+  'Top vulnerabilities':{what:'The CVEs that generate the most work — one fix here closes many rows.',how:'One row per CVE/plugin among open findings. Inst. = host × CVE pairs; Hosts = distinct hosts; EPSS = mean across those instances; Past SLA = breached instances; Oldest = the oldest instance’s age.'},
+  'Top hosts':{what:'The assets carrying the most open findings.',how:'One row per host. Max score = the highest priority score among its open findings (see Risk Prioritization → Priority tiers).'},
+  /* ---- Prioritize ---- */
+  'P1 · Fix now':{what:'Findings that should be in today’s stand-up.',how:'Priority score ≥ 85. Score = severity (Crit 50 / High 35 / Med 15 / Low 5) + EPSS × 25 + KEV 20 + asset tier (T0 15 / T1 10 / T2 5) + internet-facing 10 + public exploit 5.'},
+  'KEV open':{what:'Open instances on the CISA Known Exploited Vulnerabilities list.',how:'Open instances with the KEV flag. Same as the Overview tile; repeated here because it drives the priority score.'},
+  'EPSS ≥ 0.70':{what:'Findings with a high probability of being exploited soon, regardless of CVSS.',how:'EPSS (FIRST’s Exploit Prediction Scoring System) ≥ 0.70 = at least a 70% chance of exploitation activity in the next 30 days. Refreshed daily in production; synthetic here.'},
+  'Tier 0 exposed':{what:'Critical/High findings on crown-jewel assets.',how:'Open instances where severity is Critical or High and the host’s CMDB criticality is Tier 0 (payment rails, core banking, identity).'},
+  'Internet-facing Crit/High':{what:'Serious findings an attacker can reach without being inside the network.',how:'Open Critical/High instances on hosts flagged internet-facing in the CMDB / external attack-surface inventory.'},
+  'Public exploit available':{what:'Findings with working exploit code in the open — Metasploit modules, public PoCs.',how:'Open instances whose scanner plugin metadata reports a public exploit. Sub-line = those with no vendor patch yet (mitigation, not patching, is the only option).'},
+  'Priority tiers':{what:'The whole open queue sorted into four buckets so the team argues about the rule, not each ticket.',how:'Score = severity (Crit 50 / High 35 / Med 15 / Low 5) + EPSS × 25 + KEV 20 + tier (T0 15 / T1 10 / T2 5 / T3 0) + internet-facing 10 + public exploit 5. P1 ≥ 85 · P2 ≥ 65 · P3 ≥ 45 · P4 < 45.'},
+  'Exploitability vs. impact':{what:'Why CVSS alone is a bad queue: the dots that matter are top-right, and KEV dots matter wherever they sit.',how:'One dot per open CVE. x = CVSS base score, y = mean EPSS across its instances. Blue = on the CISA KEV list. Quadrant lines at CVSS 7.0 and EPSS 0.50. Hover any dot; click to filter.'},
+  'Severity × asset criticality':{what:'Where severity meets business impact — the darkest cells are the real risk.',how:'Count of open instances by severity (rows) and CMDB asset tier (columns). Colour is a single-hue scale of the count; click a cell to filter both dimensions.'},
+  'Exploit, patch & KEV status':{what:'How much of the queue is actively dangerous, and how much of it can simply be patched.',how:'Share of open instances with a public exploit; with a vendor patch available; on the CISA KEV list. Each bar is 100% of open instances.'},
+  'Priority by owner team':{what:'Who is holding the urgent work.',how:'Open instances by the host’s owner team, stacked by priority tier (see Priority tiers for the score).'},
+  'Prioritized remediation queue':{what:'The work list, in the order it should be done.',how:'Top 400 open instances by priority score. Due = first seen + SLA days. SLA pill: green within, amber due ≤ 7 d, red past due. Sort any column; click a row to filter by CVE.'},
+  /* ---- Remediation & SLA ---- */
+  'Breached':{what:'Open instances past their due date.',how:'Age > SLA days for the severity. Sub-line = breached by more than 30 days. '+SLA_TXT},
+  'Due within 7 days':{what:'Open instances that will breach within a week unless fixed — the cheapest breaches to prevent.',how:'SLA days − age is between 0 and 7. Click to filter.'},
+  'MTTR · Critical':{what:'Average days to close a Critical.',how:'Mean of (closure − first seen) over Critical findings closed in the last 90 days. SLA is 7 days.'},
+  'MTTR · High':{what:'Average days to close a High.',how:'Mean of (closure − first seen) over High findings closed in the last 90 days. SLA is 30 days.'},
+  'Fixed last 30 days':{what:'Throughput — how many findings the org actually closed recently.',how:'Instances with a scanner-confirmed closure in the 30 days before the snapshot. Sub-line = share of those closed on or before their due date.'},
+  'SLA adherence by severity':{what:'Whether the program keeps its promises on the findings that matter most — Critical adherence is the number regulators ask about.',how:ADH_TXT+' Computed per severity; the line is the 90% target.'},
+  'Mean time to remediate by severity':{what:'How long each severity really takes to fix, against its SLA.',how:'Mean of (closure − first seen) per severity over findings closed in the last 90 days. Compare with SLA 7 / 30 / 60 / 120 days.'},
+  'SLA breach aging':{what:'Not just whether findings are late, but how late.',how:'Open instances per severity, split by days past due: within SLA · 1–7 · 8–30 · 31–90 · 90+ days over.'},
+  'Opened vs. fixed — monthly':{what:'Monthly inflow and outflow side by side.',how:'Per complete calendar month: Opened = first seen in the month; Fixed = closure date in the month. Net = fixed − opened.'},
+  'Backlog composition over time':{what:'Whether the backlog is growing, and whether it is growing in the severities that matter.',how:'Instances open at each month end (first seen ≤ month end, not closed by it), stacked by severity.'},
+  'Due in the next 7 days':{what:'The list to work this week to avoid new breaches.',how:'Open instances with 0–7 days left on their SLA, sorted by days left (= SLA days − age).'},
+  'Remediation velocity by team':{what:'Who is shipping fixes, and whether they ship them on time.',how:'Instances closed in the last 30 days by owner team. On time = closed on or before the due date; Late = after.'},
+  /* ---- Ownership ---- */
+  'Open by owner team':{what:'The open queue by who has to fix it.',how:'Open instances grouped by the host’s CMDB owner team, stacked by severity.'},
+  'SLA adherence by team':{what:'Accountability in one number per team.',how:ADH_TXT+' Computed per owner team; the line is the 90% target.'},
+  'Team × age of open findings':{what:'Which teams are sitting on old work.',how:'Open instances by owner team (rows) and age band (columns). Single-hue scale of the count; click a cell to filter both.'},
+  'Workflow pipeline':{what:'Where open findings sit in the ServiceNow process. A fat “Pending Verification” means the scanner, not the team, is the bottleneck.',how:'Open instances by workflow state: New → Triaged → Assigned → In Progress → Pending Verification, plus Risk Accepted. Bar = share of the largest stage. Click a stage to filter every page.'},
+  'Accountability leaderboard':{what:'One row per team: volume, urgency, lateness, speed.',how:'Open / Critical / KEV / Breached = open instance counts. % breached = breached ÷ open. Oldest = max age. SLA adherence and MTTR use the same 90-day definitions as the KPI tiles. Pending verify = instances awaiting re-scan.'},
+  /* ---- Coverage & Exceptions ---- */
+  'Not scanned in 30 days':{what:'Assets the program is blind to right now.',how:'In-scope assets with no successful scan in the 30 days before the snapshot. Sub-line = how many of them are Tier 0/1.'},
+  'Credentialed scans':{what:'Share of assets scanned with credentials — the only way to see missing patches, not just open ports.',how:'Assets whose most recent scan was authenticated ÷ in-scope assets.'},
+  'Agent coverage':{what:'Share of assets reporting through a scanner agent, which keeps roaming and off-VPN devices visible.',how:'Agent-eligible assets (everything except network devices) with an agent ÷ agent-eligible assets. Sub-line = eligible assets without one.'},
+  'End-of-life platforms':{what:'Assets on an OS or firmware the vendor no longer patches — every new CVE there is permanent.',how:'In-scope assets flagged end-of-life in the CMDB / scanner OS fingerprint.'},
+  'Active exceptions (POA&M)':{what:'Findings the business has formally accepted for now.',how:'Open findings in Risk Accepted state whose exception expiry is more than 30 days away. Sub-line = all risk acceptances regardless of expiry.'},
+  'Expiring ≤ 30 days':{what:'Exceptions that need a re-review decision this month.',how:'Risk-accepted findings whose expiry is within 30 days of the snapshot.'},
+  'Expired, still open':{what:'Exceptions that lapsed while the finding stayed open — these are back on the SLA clock and usually already breached.',how:'Risk-accepted findings whose expiry is before the snapshot date.'},
+  'Coverage by OS':{what:'Where scanning is thin — network devices are usually the weak spot.',how:'Per OS, share of assets: credentialed scan in last 30 d · unauthenticated scan in last 30 d · no scan in 30 d. Each bar is 100% of that OS.'},
+  'Last successful scan':{what:'Freshness of the data every other page is built on.',how:'In-scope assets bucketed by days since their last successful scan: 0–7 · 8–30 · 31–90 · 91+.'},
+  'Exceptions by justification':{what:'Why risk is being accepted. “Vendor patch not yet available” is legitimate; “Legacy — decommission scheduled” needs a date.',how:'Open risk-accepted findings grouped by the justification recorded on the exception.'},
+  'Exceptions expiring — next 6 months':{what:'The re-review workload ahead, so nobody discovers 40 expiries in one week.',how:'Open risk-accepted findings counted by the calendar month of their expiry date, for the six months starting with the snapshot month.'},
+  'Hygiene gaps by OS':{what:'Structural problems that make remediation impossible or invisible.',how:'Per OS: assets flagged end-of-life, and agent-eligible assets without a scanner agent.'},
+  'Risk exceptions & acceptances (POA&M)':{what:'The exception register — what is accepted, why, by whom, until when.',how:'Every open finding in Risk Accepted state. Days to expiry = expiry − snapshot (negative = expired). Status: Active > 30 d · Expiring ≤ 30 d · Expired < 0.'},
+  /* ---- SOP ---- */
+  'Live workflow pipeline':{what:'The same ServiceNow pipeline as the Ownership page, placed next to the process it implements.',how:'Open instances by workflow state under the current filters. Click a stage to filter every page.'},
+  'SLA policy':{what:'The remediation clocks the whole dashboard enforces.',how:'Reference table. Every “Past SLA”, “At risk”, adherence and MTTR figure on the other pages uses these days. Overrides tighten a clock; they never loosen one.'},
+  'Escalation matrix':{what:'Who hears about a late finding, and when.',how:'Reference table driven by the ServiceNow SLA timers; the Breached and At-risk states on the dashboard are the same timers surfaced visually.'},
+  'Standard operating procedure — remediation runbook':{what:'The eight steps a finding goes through, with an owner and an exit criterion each.',how:'Reference content. Step 3 contains the priority-score formula used by the Risk Prioritization page.'},
+  'Weekly cadence':{what:'The meetings and jobs that keep the queue moving.',how:'Reference content. Friday’s metrics freeze produces the weekly snapshot selectable in the filter bar.'},
+  'Metric definitions':{what:'Every number on this dashboard, defined once.',how:'Reference content. The ⓘ button on each card repeats the relevant definition in place.'},
+  'RACI':{what:'Who is responsible, accountable, consulted and informed for each activity.',how:'Reference content.'},
+  'Glossary':{what:'Terms used across the pages.',how:'Reference content.'},
+};
+/* ============================================================
+   5. UI wiring — tabs, slicers, chips, export, theme, render loop
+   ============================================================ */
+const tabsEl=document.getElementById('tabs'),filtersEl=document.getElementById('filters'),chipsEl=document.getElementById('chips');
+for(const [id,label] of PAGES){const b=H('button','tab',label);b.setAttribute('role','tab');b.dataset.page=id;b.addEventListener('click',()=>{F.page=id;render()});tabsEl.appendChild(b)}
+
+/* snapshot + saved views + multi-selects + toggles + search */
+function buildFilters(){
+  filtersEl.replaceChildren();
+  const snapLbl=H('span','lbl','Snapshot');const snap=H('select','sel');SNAPSHOTS.forEach(d=>{const o=H('option',null,fmtDate(d)+(d===LATEST?' · latest':''));o.value=d.getTime();if(d.getTime()===SNAP.getTime())o.selected=true;snap.appendChild(o)});
+  snap.addEventListener('change',()=>{annotate(new Date(+snap.value));render()});
+  filtersEl.append(snapLbl,snap);
+  const viewsLbl=H('span','lbl','Saved view');const views=H('select','sel');
+  const VIEWS=[['— choose —',null],
+    ['Board pack · Production Crit/High',()=>preset(()=>{F.dims.env=new Set(['Production']);F.dims.severity=new Set(['Critical','High'])},'overview')],
+    ['Fix-now queue (P1)',()=>preset(()=>{F.dims.priority=new Set([PRIORITIES[0]])},'prioritize')],
+    ['KEV sweep',()=>preset(()=>{F.kev=true},'prioritize')],
+    ['Crown jewels (Tier 0)',()=>preset(()=>{F.dims.tier=new Set(['Tier 0'])},'overview')],
+    ['Audit prep · breached + exceptions',()=>preset(()=>{F.dims.slaState=new Set(['Breached']);F.dims.env=new Set(['Production'])},'coverage')],
+    ['Internet-facing exposure',()=>preset(()=>{F.inet=true},'prioritize')],
+    ['Endpoint fleet (workstations + macOS)',()=>preset(()=>{F.dims.os=new Set(['Windows Workstation','macOS'])},'ownership')],
+  ];
+  VIEWS.forEach(([l,fn],i)=>{const o=H('option',null,l);o.value=i;views.appendChild(o)});
+  views.addEventListener('change',()=>{const v=VIEWS[+views.value];if(v[1])v[1]();views.value=0});
+  filtersEl.append(viewsLbl,views);
+  for(const d of DIMS){if(d.hidden)continue;filtersEl.appendChild(multiSelect(d))}
+  const tg=(label,key)=>{const b=H('button','tg');b.setAttribute('aria-pressed',F[key]);b.append(H('i'),document.createTextNode(label));b.addEventListener('click',()=>{F[key]=!F[key];render()});return b};
+  filtersEl.append(tg('KEV only','kev'),tg('Internet-facing','inet'),tg('Public exploit','exploit'));
+  const s=H('input','search');s.type='search';s.placeholder='Search host, CVE, title…';s.value=F.search;let t;s.addEventListener('input',()=>{clearTimeout(t);t=setTimeout(()=>{F.search=s.value.trim();render(true)},250)});
+  filtersEl.appendChild(s);
+}
+function multiSelect(d){
+  const wrap=H('div','ms');const btn=H('button');const sel=F.dims[d.key]||new Set();
+  const b=H('b',null,d.label);const n=H('span','n',sel.size?`· ${sel.size===1?[...sel][0]:sel.size+' selected'}`:'· All');btn.append(b,n,document.createTextNode(' ▾'));if(sel.size)btn.classList.add('on');
+  const pop=H('div','pop');const acts=H('div','acts');const all=H('button',null,'All');const none=H('button',null,'None');
+  all.addEventListener('click',()=>{F.dims[d.key]=new Set();render()});none.addEventListener('click',()=>{F.dims[d.key]=new Set(d.values);render()});acts.append(all,none);pop.appendChild(acts);
+  const counts=groupBy(base.filter(r=>r.open&&matches(r)),d.get);
+  for(const v of d.values){const l=H('label');const c=H('input');c.type='checkbox';c.checked=sel.has(v);c.addEventListener('change',()=>{const s=F.dims[d.key]||(F.dims[d.key]=new Set());if(c.checked)s.add(v);else s.delete(v);render()});l.append(c,document.createTextNode(v),H('span','c',fmtN(cnt(counts.get(v)||[]))));pop.appendChild(l)}
+  btn.addEventListener('click',e=>{e.stopPropagation();const open=pop.classList.contains('open');document.querySelectorAll('.ms .pop.open').forEach(p=>p.classList.remove('open'));if(!open)pop.classList.add('open')});
+  pop.addEventListener('click',e=>e.stopPropagation());
+  wrap.append(btn,pop);return wrap;
+}
+document.addEventListener('click',()=>document.querySelectorAll('.ms .pop.open').forEach(p=>p.classList.remove('open')));
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.querySelectorAll('.ms .pop.open').forEach(p=>p.classList.remove('open'));document.getElementById('modal').classList.remove('open')}});
+
+function buildChips(){
+  chipsEl.replaceChildren();
+  const items=[];
+  for(const [k,set] of activeDims()){const d=DIM[k];for(const v of set)items.push([d.label,v,()=>{set.delete(v);render()}])}
+  if(F.kev)items.push(['KEV','only',()=>{F.kev=false;render()}]);if(F.inet)items.push(['Exposure','internet-facing',()=>{F.inet=false;render()}]);if(F.exploit)items.push(['Exploit','public',()=>{F.exploit=false;render()}]);
+  if(F.search)items.push(['Search',F.search,()=>{F.search='';render()}]);
+  if(!items.length){chipsEl.appendChild(H('span',null,'No filters — click any bar, cell, row or KPI to cross-filter every page. Snapshot: '+fmtDate(SNAP)+' · '+fmtN(openF.length)+' open instances · '+fmtN(hostsF.length)+' assets in scope.'));return}
+  chipsEl.appendChild(H('span',null,'Filters:'));
+  for(const [l,v,fn] of items){const c=H('button','chip');c.append(document.createTextNode(l+' '),H('b',null,v),H('span','x','✕'));c.addEventListener('click',fn);chipsEl.appendChild(c)}
+  const s=H('span',null,`→ ${fmtN(openF.length)} open instances · ${fmtN(new Set(openF.map(r=>r.cve)).size)} CVEs · ${fmtN(new Set(openF.map(r=>r.host)).size)} hosts`);s.style.marginLeft='6px';chipsEl.appendChild(s);
+}
+
+/* export */
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove('show'),2200)}
+function csvOf(rows){const cols=['host','ip','os','bu','env','tag','region','team','tier','inet','scanner','cve','title','product','severity','cvss','epss','kev','exploit','patch','first_seen','due','age_days','sla_state','state','priority','score','ticket','exception_status','exception_expiry'];
+  const esc=v=>{const s=v==null?'':String(v);return/[",\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+  const lines=[cols.join(',')];for(const r of rows)lines.push([r.host,r.h.ip,r.os,r.bu,r.env,r.tag,r.region,r.team,r.tier,r.inet?'Y':'N',r.scanner,r.cve,r.title,r.product,r.severity,r.cvss,r.epss.toFixed(3),r.kev?'Y':'N',r.exploit?'Y':'N',r.patch?'Y':'N',fmtDate(r.firstSeen),fmtDate(r.due),r.age,r.slaState,r.stateNow,r.priority,r.score,r.ticket||'',r.excStatus||'',r.exception?fmtDate(r.exception.expiry):''].map(esc).join(','));return lines.join('\n')}
+document.getElementById('exportBtn').addEventListener('click',async()=>{const csv=csvOf(openF);try{await navigator.clipboard.writeText(csv);toast(`Copied ${fmtN(openF.length)} filtered rows as CSV`)}catch(e){}
+  const m=document.getElementById('modal');document.getElementById('modalTitle').textContent=`Export — ${fmtN(openF.length)} open findings (CSV)`;document.getElementById('modalText').value=csv;m.classList.add('open')});
+document.getElementById('modalClose').addEventListener('click',()=>document.getElementById('modal').classList.remove('open'));
+document.getElementById('modalCopy').addEventListener('click',async()=>{try{await navigator.clipboard.writeText(document.getElementById('modalText').value);toast('Copied to clipboard')}catch(e){document.getElementById('modalText').select()}});
+document.getElementById('clearBtn').addEventListener('click',clearAll);
+document.getElementById('themeBtn').addEventListener('click',()=>{const root=document.documentElement;const cur=root.getAttribute('data-theme');const sysDark=matchMedia('(prefers-color-scheme: dark)').matches;const dark=cur?cur==='dark':sysDark;root.setAttribute('data-theme',dark?'light':'dark');render()});
+document.getElementById('viewSeg').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;F.view=b.dataset.v;render()});
+
+/* render loop */
+let renderTimer=null;
+function render(keepFocus){
+  compute();
+  for(const b of tabsEl.children)b.setAttribute('aria-selected',b.dataset.page===F.page);
+  document.querySelectorAll('#viewSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===F.view));
+  const active=document.activeElement;const wasSearch=keepFocus&&active&&active.classList.contains('search');const selPos=wasSearch?active.selectionStart:0;
+  buildFilters();buildChips();
+  if(wasSearch){const s=filtersEl.querySelector('.search');s.focus();s.setSelectionRange(selPos,selPos)}
+  main.replaceChildren();
+  const fn={overview:pageOverview,prioritize:pagePrioritize,remediation:pageRemediation,ownership:pageOwnership,coverage:pageCoverage,sop:pageSop}[F.page];
+  for(const n of fn())main.appendChild(n);
+  hideTip();
+}
+addEventListener('resize',()=>{clearTimeout(renderTimer);renderTimer=setTimeout(()=>render(),160)});
+render();
+</script>
+</body></html>

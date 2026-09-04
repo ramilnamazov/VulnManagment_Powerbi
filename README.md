@@ -1,6 +1,27 @@
 # US Infrastructure Vulnerability Dashboard
 
-**[Open the live dashboard →](https://ramilnamazov.github.io/VulnManagment_Powerbi/)**
+**[v2 — VulnOps Command Center →](https://ramilnamazov.github.io/VulnManagment_Powerbi/v2/)** · **[v1 — Power BI-style dashboard →](https://ramilnamazov.github.io/VulnManagment_Powerbi/)**
+
+## Version 2 — VulnOps Command Center
+
+The same idea rebuilt the way a vulnerability-management lead actually runs the program: six pages, one filter bar, and every number defined in place.
+
+![VulnOps Command Center — Executive Overview](assets/v2-overview.jpg)
+
+- **Executive Overview** — open findings with 12-week trend and delta vs. prior snapshot, Critical / High / CISA KEV / past-SLA tiles, SLA adherence, MTTR, scan coverage, and an **Action queue** that jumps to the right page with the right filters already applied
+- **Risk Prioritization** — a documented priority score (severity + EPSS + KEV + asset tier + exposure), CVSS-vs-EPSS scatter with KEV emphasised, severity × asset-criticality heatmap, and a prioritized remediation queue
+- **Remediation & SLA** — adherence by severity against a 90% target, MTTR, breach aging, monthly opened vs. fixed, backlog composition, due-in-7-days, team velocity
+- **Ownership** — by-team stacks, team SLA adherence, team × age heatmap, live ServiceNow-style pipeline, accountability leaderboard
+- **Coverage & Exceptions** — scan / credentialed / agent coverage, EOL platforms, last-scan age, exceptions by justification and expiry, full POA&M register
+- **SOP & Workflow** — SLA policy, escalation matrix, 8-step runbook, weekly cadence, metric definitions, RACI, glossary
+
+**Slicers & dicers:** weekly snapshot picker that replays history (every metric recomputes as-of that date), saved views, ten multi-select dimensions with live counts, KEV / internet-facing / public-exploit toggles, search, an Instances ⇄ Distinct-CVEs toggle, filter chips, CSV export, light/dark, a table-view twin on every chart, and an **ⓘ button on every card and KPI** that explains what it shows and exactly how it is calculated.
+
+Still a single self-contained HTML file with zero dependencies. Severity uses a single-hue red ramp instead of red/orange/yellow because the classic scale fails colorblind-safety checks (orange ↔ yellow is indistinguishable for deutan viewers). All data is synthetic.
+
+---
+
+## Version 1 — Power BI-style dashboard
 
 A Power BI-style vulnerability management dashboard, rebuilt as a single self-contained HTML file so anyone can open it in a browser — no Power BI license, no data gateway, nothing to install. Built to show what a security/IT team would actually look at day to day: what's critical, what's overdue, and what's on the CISA KEV list.
 
